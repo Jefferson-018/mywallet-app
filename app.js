@@ -1,6 +1,6 @@
 import { auth, db, provider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, collection, addDoc, query, where, onSnapshot, deleteDoc, doc, updateDoc } from "./firebase.js";
 
-// Configuração Visual das Categorias (ADICIONEI NOVAS)
+// Configuração Visual das Categorias (AGORA COM MAIS OPÇÕES)
 const categoryConfig = {
     salary: { label: 'Receita', icon: 'banknote', color: 'text-green-600', bg: 'bg-green-100', type: 'income' },
     freelance: { label: 'Freelance', icon: 'laptop', color: 'text-emerald-600', bg: 'bg-emerald-100', type: 'income' },
@@ -49,6 +49,7 @@ onAuthStateChanged(auth, (user) => {
     } else {
         currentUser = null;
         loginScreen.classList.remove('hidden');
+        appScreen.classList.remove('hidden'); // Exibe login
         appScreen.classList.add('hidden');
         if (unsubscribe) unsubscribe();
         listElement.innerHTML = '';
@@ -82,6 +83,8 @@ function carregarDados(uid) {
     unsubscribe = onSnapshot(q, (snapshot) => {
         const transactions = [];
         snapshot.forEach(doc => { transactions.push({ id: doc.id, ...doc.data() }); });
+        
+        // Ordena por data
         transactions.sort((a, b) => {
             const dateA = a.date ? new Date(a.date) : new Date(0);
             const dateB = b.date ? new Date(b.date) : new Date(0);
@@ -166,6 +169,7 @@ function renderChart(transactions) {
 // --- FUNÇÕES GLOBAIS (Janela de Edição + Deletar + Exportar) ---
 window.deletarItem = async (id) => { if(confirm("Apagar registro?")) { await deleteDoc(doc(db, "transactions", id)); } }
 
+// Abre a janela de edição e preenche os campos
 window.prepararEdicao = (id, desc, amount, date) => {
     document.getElementById('edit-modal').classList.remove('hidden');
     document.getElementById('edit-id').value = id;
@@ -184,12 +188,7 @@ document.getElementById('edit-form').addEventListener('submit', async (e) => {
     const amountVal = parseFloat(document.getElementById('edit-amount').value);
     const dateVal = document.getElementById('edit-date').value;
 
-    // Busca o documento original só pra saber se era receita ou despesa (pra manter o sinal)
-    // Simplificação: Se estava negativo, continua negativo. Se positivo, positivo.
-    // Melhoria: Aqui assumimos que o usuário não muda de "Receita" pra "Despesa" na edição, só ajusta valor.
-    // Se quiser mudar o tipo, melhor deletar e criar outro.
-    
-    // Vamos checar na lista local atual qual era o valor antigo
+    // Lógica inteligente: mantemos o sinal (positivo ou negativo) que estava antes
     const original = allTransactions.find(t => t.id === id);
     const isExpense = original && original.amount < 0;
     const finalAmount = isExpense ? -Math.abs(amountVal) : Math.abs(amountVal);
@@ -208,6 +207,7 @@ document.getElementById('edit-form').addEventListener('submit', async (e) => {
     }
 });
 
+// Exportar para CSV (Excel)
 window.exportarCSV = () => {
     if(!allTransactions.length) return alert("Nada para exportar!");
     let csvContent = "data:text/csv;charset=utf-8,Data,Descrição,Categoria,Valor\n";
