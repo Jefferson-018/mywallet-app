@@ -27,65 +27,70 @@ const monthFilter = document.getElementById('month-filter');
 let chartInstance = null;
 let currentUser = null;
 let unsubscribe = null;
-let allTransactions = []; // Todos os dados (Banco)
-let filteredTransactions = []; // Dados visíveis (Tela)
+let allTransactions = []; 
+let filteredTransactions = []; 
 
-// Inicializa Data do Formulário
 const dateInput = document.getElementById('date');
 if(dateInput) dateInput.valueAsDate = new Date();
 
 if(window.lucide) lucide.createIcons();
 
-// --- POPULAR O MENU DE MESES (NOVO!) ---
+// --- MÁSCARA DE MOEDA (NOVIDADE!) ---
+window.formatarMoedaInput = (input) => {
+    let value = input.value.replace(/\D/g, ""); // Só números
+    value = (Number(value) / 100).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL"
+    });
+    input.value = value;
+}
+
+// Limpa o "R$ 1.500,00" para virar 1500.00 pro banco
+function limparValorMoeda(valorString) {
+    if (!valorString) return 0;
+    const numeroLimpo = valorString.replace(/\D/g, "") / 100;
+    return numeroLimpo;
+}
+
+// --- POPULAR O MENU DE MESES ---
 function popularSeletorMeses() {
     if(!monthFilter) return;
-    monthFilter.innerHTML = ''; // Limpa
-    
+    monthFilter.innerHTML = ''; 
     const hoje = new Date();
-    // Gera opções: 12 meses para trás e 12 meses para frente
+    // Gera 12 meses para trás e 12 para frente
     const dataInicio = new Date(hoje.getFullYear() - 1, hoje.getMonth(), 1);
-    
     const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
     for (let i = 0; i < 25; i++) {
         const d = new Date(dataInicio.getFullYear(), dataInicio.getMonth() + i, 1);
         const ano = d.getFullYear();
         const mes = d.getMonth();
-        const valor = `${ano}-${String(mes + 1).padStart(2, '0')}`; // Ex: 2025-12
+        const valor = `${ano}-${String(mes + 1).padStart(2, '0')}`; // "2025-12"
         const texto = `${nomesMeses[mes]} ${ano}`;
-
         const option = document.createElement('option');
         option.value = valor;
         option.text = texto;
         
-        // Seleciona o mês atual automaticamente
+        // Seleciona o mês atual
         const mesAtualStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
         if (valor === mesAtualStr) option.selected = true;
-
         monthFilter.appendChild(option);
     }
-
     monthFilter.addEventListener('change', aplicarFiltro);
 }
-
-// Inicializa o seletor assim que o script roda
 popularSeletorMeses();
 
 // --- NOTIFICAÇÕES (TOAST) ---
 function showToast(msg, type = 'success') {
     const container = document.getElementById('toast-container');
     if(!container) return;
-    
     const toast = document.createElement('div');
     const colors = type === 'error' ? 'bg-red-500' : 'bg-emerald-500';
     const icon = type === 'error' ? 'alert-circle' : 'check-circle';
-    
     toast.className = `${colors} text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 toast-enter min-w-[300px]`;
     toast.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i><span class="font-medium text-sm">${msg}</span>`;
-    
     container.appendChild(toast);
     if(window.lucide) lucide.createIcons();
-
     setTimeout(() => {
         toast.style.opacity = '0';
         toast.style.transform = 'translateY(-10px)';
@@ -97,9 +102,7 @@ function showToast(msg, type = 'success') {
 loginBtn.addEventListener('click', async () => {
     try { await signInWithRedirect(auth, provider); } catch (e) { showToast("Erro login: " + e.message, 'error'); }
 });
-
 logoutBtn.addEventListener('click', () => signOut(auth));
-
 onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
@@ -117,13 +120,19 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// --- SALVAR (Com correção do Filtro) ---
+// --- SALVAR (COM MÁSCARA E FILTRO) ---
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentUser) return;
 
     const desc = document.getElementById('desc').value;
-    const amountVal = parseFloat(document.getElementById('amount').value);
+    
+    // Limpa a máscara (R$ -> numero)
+    const valorCampo = document.getElementById('amount').value;
+    const amountVal = limparValorMoeda(valorCampo);
+
+    if(amountVal <= 0) return showToast("Digite um valor válido!", "error");
+
     const dateVal = document.getElementById('date').value;
     const category = document.getElementById('category').value;
     const type = categoryConfig[category].type;
@@ -133,25 +142,18 @@ form.addEventListener('submit', async (e) => {
         await addDoc(collection(db, "transactions"), {
             uid: currentUser.uid, desc: desc, amount: finalAmount, date: dateVal, category: category, createdAt: new Date()
         });
-        
         showToast("Lançamento adicionado!");
         
-        // MÁGICA: Muda o filtro para o mês do lançamento se precisar
+        // Muda o filtro para o mês do lançamento
         if(monthFilter && dateVal) {
             const mesDoLancamento = dateVal.slice(0, 7);
-            
-            // Verifica se a opção existe no select antes de mudar
             let existe = false;
-            for(let opt of monthFilter.options) {
-                if(opt.value === mesDoLancamento) existe = true;
-            }
-
+            for(let opt of monthFilter.options) { if(opt.value === mesDoLancamento) existe = true; }
             if(existe && monthFilter.value !== mesDoLancamento) {
                 monthFilter.value = mesDoLancamento;
                 aplicarFiltro();
             }
         }
-
         form.reset();
         document.getElementById('date').valueAsDate = new Date();
     } catch (error) { 
@@ -167,7 +169,7 @@ function carregarDados(uid) {
         const transactions = [];
         snapshot.forEach(doc => { 
             const data = doc.data();
-            // Correção de Timestamp antigo
+            // Correção de dados antigos bugados
             let dataCorrigida = data.date;
             if(data.date && data.date.seconds) {
                 try { dataCorrigida = new Date(data.date.seconds * 1000).toISOString().split('T')[0]; } 
@@ -175,31 +177,20 @@ function carregarDados(uid) {
             }
             transactions.push({ id: doc.id, ...data, date: dataCorrigida }); 
         });
-        
         transactions.sort((a, b) => {
             const dateA = a.date ? new Date(a.date) : new Date(0);
             const dateB = b.date ? new Date(b.date) : new Date(0);
             return dateB - dateA;
         });
-        
         allTransactions = transactions;
         aplicarFiltro();
     });
 }
 
-// --- LÓGICA DO FILTRO ---
 function aplicarFiltro() {
-    const mesSelecionado = monthFilter.value; // Ex: "2025-12"
-    
-    if (!mesSelecionado) {
-        filteredTransactions = allTransactions;
-    } else {
-        filteredTransactions = allTransactions.filter(t => {
-            if(!t.date) return false;
-            return t.date.startsWith(mesSelecionado);
-        });
-    }
-
+    const mesSelecionado = monthFilter.value; 
+    if (!mesSelecionado) { filteredTransactions = allTransactions; } 
+    else { filteredTransactions = allTransactions.filter(t => { if(!t.date) return false; return t.date.startsWith(mesSelecionado); }); }
     renderList(filteredTransactions);
     renderValues(filteredTransactions);
     renderChart(filteredTransactions);
@@ -242,7 +233,6 @@ function renderValues(transactions) {
     const elTotal = document.getElementById('display-total'); if(elTotal) elTotal.innerText = format(total);
     const elIncome = document.getElementById('display-income'); if(elIncome) elIncome.innerText = format(income);
     const elExpense = document.getElementById('display-expense'); if(elExpense) elExpense.innerText = format(Math.abs(expense));
-    
     const balMsg = document.getElementById('balance-msg');
     if (balMsg) {
         if(total < 0) { balMsg.innerHTML = '<i data-lucide="alert-circle" class="w-3 h-3"></i> Atenção: Saldo Negativo'; balMsg.className = "text-xs text-red-500 mt-2 flex items-center gap-1 font-bold"; } 
@@ -277,21 +267,15 @@ function formatarData(dateValue) {
     } catch (e) { return "Data Inválida"; }
 }
 
-// --- AÇÕES GLOBAIS ---
-window.deletarItem = async (id) => { 
-    if(confirm("Tem certeza que deseja apagar este registro?")) { 
-        try {
-            await deleteDoc(doc(db, "transactions", id));
-            showToast("Registro apagado!", 'success');
-        } catch(e) { showToast("Erro ao apagar", 'error'); }
-    } 
-}
+window.deletarItem = async (id) => { if(confirm("Apagar registro?")) { await deleteDoc(doc(db, "transactions", id)); showToast("Registro apagado!"); } }
 
 window.prepararEdicao = (id, desc, amount, date) => {
     document.getElementById('edit-modal').classList.remove('hidden');
     document.getElementById('edit-id').value = id;
     document.getElementById('edit-desc').value = desc;
-    document.getElementById('edit-amount').value = Math.abs(amount);
+    // Formata o valor antes de mostrar na edição
+    const valorFormatado = amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    document.getElementById('edit-amount').value = valorFormatado;
     document.getElementById('edit-date').value = date;
 }
 
@@ -301,7 +285,9 @@ document.getElementById('edit-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('edit-id').value;
     const desc = document.getElementById('edit-desc').value;
-    const amountVal = parseFloat(document.getElementById('edit-amount').value);
+    // Limpa máscara da edição
+    const valorCampo = document.getElementById('edit-amount').value;
+    const amountVal = limparValorMoeda(valorCampo);
     const dateVal = document.getElementById('edit-date').value;
     const original = allTransactions.find(t => t.id === id);
     const isExpense = original && original.amount < 0;
@@ -310,14 +296,13 @@ document.getElementById('edit-form').addEventListener('submit', async (e) => {
     try {
         const docRef = doc(db, "transactions", id);
         await updateDoc(docRef, { desc: desc, amount: finalAmount, date: dateVal });
-        showToast("Registro atualizado!", 'success');
+        showToast("Registro atualizado!");
         fecharModal();
     } catch (error) { showToast("Erro ao editar", 'error'); }
 });
 
 window.exportarCSV = () => {
     if(!filteredTransactions.length) return showToast("Nada para exportar neste mês!", 'error');
-    
     let csvContent = "\uFEFFData;Descrição;Categoria;Valor\n";
     filteredTransactions.forEach(t => {
         const val = parseFloat(t.amount).toLocaleString('pt-BR', {minimumFractionDigits: 2});
@@ -327,7 +312,6 @@ window.exportarCSV = () => {
         if(categoryConfig[t.category]) { catTraduzida = categoryConfig[t.category].label; }
         csvContent += `${dataCerta};${safeDesc};${catTraduzida};${val}\n`;
     });
-
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);

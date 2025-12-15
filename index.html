@@ -47,7 +47,7 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label for="edit-amount" class="text-xs font-bold text-gray-500 uppercase">Valor</label>
-                        <input type="number" step="0.01" id="edit-amount" class="w-full p-3 bg-gray-50 border rounded-xl" required>
+                        <input type="text" id="edit-amount" onkeyup="formatarMoedaInput(this)" class="w-full p-3 bg-gray-50 border rounded-xl" required>
                     </div>
                     <div>
                         <label for="edit-date" class="text-xs font-bold text-gray-500 uppercase">Data</label>
@@ -118,7 +118,7 @@
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label for="amount" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Valor</label>
-                                    <input type="number" step="0.01" id="amount" placeholder="0,00" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-indigo-500 transition" required>
+                                    <input type="text" id="amount" placeholder="R$ 0,00" inputmode="numeric" onkeyup="formatarMoedaInput(this)" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-indigo-500 transition" required>
                                 </div>
                                 <div>
                                     <label for="date" class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Data</label>
