@@ -18,16 +18,16 @@ const categoryConfig = {
 // Elementos Globais
 const loginScreen = document.getElementById('login-screen');
 const appScreen = document.getElementById('app-screen');
-const loadingScreen = document.getElementById('loading-screen'); // NOVO
+const loadingScreen = document.getElementById('loading-screen');
 const loginBtn = document.getElementById('login-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const userNameDisplay = document.getElementById('user-name');
 const form = document.getElementById('transaction-form');
 const listElement = document.getElementById('transaction-list');
 const monthFilter = document.getElementById('month-filter');
-const categorySummaryElement = document.getElementById('category-summary'); // NOVO
-const themeToggle = document.getElementById('theme-toggle'); // NOVO
-const themeIcon = document.getElementById('theme-icon'); // NOVO
+const categorySummaryElement = document.getElementById('category-summary');
+const themeToggle = document.getElementById('theme-toggle');
+const themeIcon = document.getElementById('theme-icon');
 
 let chartInstance = null;
 let currentUser = null;
@@ -40,8 +40,7 @@ if(dateInput) dateInput.valueAsDate = new Date();
 
 if(window.lucide) lucide.createIcons();
 
-// --- 1. LÓGICA DO DARK MODE (MODO ESCURO) ---
-// Verifica se já tem preferência salva ou se o sistema é escuro
+// --- 1. LÓGICA DO DARK MODE ---
 const userTheme = localStorage.getItem('theme');
 const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
@@ -57,24 +56,19 @@ if(themeToggle) {
     themeToggle.addEventListener('click', () => {
         const isDark = document.documentElement.classList.toggle('dark');
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
-        
-        // Troca ícone
         const iconName = isDark ? 'sun' : 'moon';
         themeIcon.setAttribute('data-lucide', iconName);
         lucide.createIcons();
-        
-        // Atualiza gráfico para mudar cores das fontes
         if(chartInstance) renderChart(filteredTransactions);
     });
 }
 
-// --- 2. LOADING E INICIALIZAÇÃO ---
+// --- 2. LOADING ---
 function toggleLoading(show) {
     if(show) {
         loadingScreen.classList.remove('opacity-0', 'pointer-events-none');
     } else {
         loadingScreen.classList.add('opacity-0', 'pointer-events-none');
-        // Remove do DOM depois da transição para não atrapalhar cliques
         setTimeout(() => loadingScreen.style.display = 'none', 500);
     }
 }
@@ -114,14 +108,23 @@ function popularSeletorMeses() {
 }
 popularSeletorMeses();
 
-// --- AUTH E DADOS ---
+// --- LOGIN COM POPUP (CORREÇÃO DE LOOP) ---
 loginBtn.addEventListener('click', async () => {
-    try { await signInWithRedirect(auth, provider); } 
-    catch (e) { alert("Erro login: " + e.message); }
+    try { 
+        // AQUI MUDOU: De Redirect para Popup
+        await signInWithPopup(auth, provider); 
+    } 
+    catch (e) { 
+        console.error(e);
+        // Evita mostrar alerta se o usuário fechar a janela
+        if (e.code !== 'auth/popup-closed-by-user') {
+            alert("Erro login: " + e.message); 
+        }
+    }
 });
 
 logoutBtn.addEventListener('click', () => {
-    toggleLoading(true); // Mostra loading ao sair
+    toggleLoading(true);
     signOut(auth);
 });
 
@@ -129,13 +132,13 @@ onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
         loginScreen.classList.add('hidden');
-        loginScreen.classList.remove('flex'); // Garante que saiu do flex
+        loginScreen.classList.remove('flex');
         appScreen.classList.remove('hidden');
         userNameDisplay.textContent = user.displayName;
         carregarDados(user.uid);
     } else {
         currentUser = null;
-        toggleLoading(false); // Remove loading se não estiver logado
+        toggleLoading(false);
         loginScreen.classList.remove('hidden');
         loginScreen.classList.add('flex');
         appScreen.classList.add('hidden');
@@ -165,7 +168,6 @@ form.addEventListener('submit', async (e) => {
         });
         showToast("Lançamento adicionado!");
         
-        // Atualiza filtro se necessário
         if(monthFilter && dateVal) {
             const mesDoLancamento = dateVal.slice(0, 7);
             let existe = false;
@@ -201,13 +203,10 @@ function carregarDados(uid) {
         });
         allTransactions = transactions;
         aplicarFiltro();
-        
-        // Some com o loading assim que carregar
         toggleLoading(false);
     });
 }
 
-// --- FILTRO E RENDERIZAÇÃO ---
 function aplicarFiltro() {
     const mesSelecionado = monthFilter.value; 
     if (!mesSelecionado) { filteredTransactions = allTransactions; } 
@@ -216,7 +215,7 @@ function aplicarFiltro() {
     renderList(filteredTransactions);
     renderValues(filteredTransactions);
     renderChart(filteredTransactions);
-    renderCategorySummary(filteredTransactions); // NOVO: Renderiza ranking
+    renderCategorySummary(filteredTransactions);
 }
 
 function renderList(transactions) {
@@ -247,18 +246,13 @@ function renderList(transactions) {
     if(window.lucide) lucide.createIcons();
 }
 
-// --- 3. RESUMO POR CATEGORIA (NOVO E PODEROSO) ---
 function renderCategorySummary(transactions) {
     categorySummaryElement.innerHTML = '';
-    
-    // Filtra só despesas
     const expenses = transactions.filter(t => t.amount < 0);
     if(expenses.length === 0) {
         categorySummaryElement.innerHTML = '<p class="text-center text-gray-400 text-sm py-4">Sem gastos neste mês.</p>';
         return;
     }
-
-    // Agrupa por categoria
     const totals = {};
     let totalExpenses = 0;
     expenses.forEach(t => {
@@ -268,15 +262,11 @@ function renderCategorySummary(transactions) {
         totals[cat] += val;
         totalExpenses += val;
     });
-
-    // Ordena do maior para o menor
     const sortedCats = Object.keys(totals).sort((a, b) => totals[b] - totals[a]);
-
     sortedCats.forEach(cat => {
         const conf = categoryConfig[cat] || categoryConfig['other'];
         const val = totals[cat];
         const percent = Math.round((val / totalExpenses) * 100);
-
         const item = document.createElement('div');
         item.className = "flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition";
         item.innerHTML = `
@@ -307,11 +297,9 @@ function renderValues(transactions) {
     const income = amounts.filter(item => item > 0).reduce((acc, item) => acc + item, 0);
     const expense = amounts.filter(item => item < 0).reduce((acc, item) => acc + item, 0);
     const format = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-    
     document.getElementById('display-total').innerText = format(total);
     document.getElementById('display-income').innerText = format(income);
     document.getElementById('display-expense').innerText = format(Math.abs(expense));
-    
     const balMsg = document.getElementById('balance-msg');
     if(total < 0) { 
         balMsg.innerHTML = '<i data-lucide="alert-circle" class="w-3 h-3"></i> Saldo Negativo'; 
@@ -328,22 +316,17 @@ function renderChart(transactions) {
     if(!ctx) return;
     const income = transactions.filter(t => t.amount > 0).reduce((acc, t) => acc + t.amount, 0);
     const expense = Math.abs(transactions.filter(t => t.amount < 0).reduce((acc, t) => acc + t.amount, 0));
-    
     if (income === 0 && expense === 0) { 
         ctx.style.display = 'none'; 
         if(noData) noData.classList.remove('hidden'); 
         if(chartInstance) { chartInstance.destroy(); chartInstance = null; } 
         return; 
     }
-    
     ctx.style.display = 'block'; 
     if(noData) noData.classList.add('hidden');
     if (chartInstance) chartInstance.destroy();
-
-    // Cores adaptativas para dark mode
     const isDark = document.documentElement.classList.contains('dark');
     const textColor = isDark ? '#e5e7eb' : '#374151';
-
     chartInstance = new Chart(ctx, {
         type: 'doughnut',
         data: { labels: ['Entradas', 'Saídas'], datasets: [{ data: [income, expense], backgroundColor: ['#10b981', '#ef4444'], borderWidth: 0, hoverOffset: 4 }] },
@@ -368,7 +351,6 @@ function formatarData(dateValue) {
     } catch (e) { return "Data Inválida"; }
 }
 
-// Funções Globais e Helpers
 function showToast(msg, type = 'success') {
     const container = document.getElementById('toast-container');
     if(!container) return;
@@ -391,7 +373,8 @@ window.prepararEdicao = (id, desc, amount, date) => {
     document.getElementById('edit-modal').classList.remove('hidden');
     document.getElementById('edit-id').value = id;
     document.getElementById('edit-desc').value = desc;
-    document.getElementById('edit-amount').value = amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const valorFormatado = amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    document.getElementById('edit-amount').value = valorFormatado;
     document.getElementById('edit-date').value = date;
 }
 window.fecharModal = () => { document.getElementById('edit-modal').classList.add('hidden'); }
