@@ -1,6 +1,6 @@
 import { auth, db, provider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, collection, addDoc, query, where, onSnapshot, deleteDoc, doc, updateDoc } from "./firebase.js";
 
-// --- CONFIGURAÇÃO DAS CATEGORIAS (Tradutor) ---
+// --- CONFIGURAÇÕES ---
 const categoryConfig = {
     salary: { label: 'Receita', icon: 'banknote', color: 'text-green-600', bg: 'bg-green-100', type: 'income' },
     freelance: { label: 'Freelance', icon: 'laptop', color: 'text-emerald-600', bg: 'bg-emerald-100', type: 'income' },
@@ -15,7 +15,7 @@ const categoryConfig = {
     other: { label: 'Outros', icon: 'package', color: 'text-gray-600', bg: 'bg-gray-100', type: 'expense' }
 };
 
-// Elementos da Tela
+// Elementos
 const loginScreen = document.getElementById('login-screen');
 const appScreen = document.getElementById('app-screen');
 const loginBtn = document.getElementById('login-btn');
@@ -23,19 +23,49 @@ const logoutBtn = document.getElementById('logout-btn');
 const userNameDisplay = document.getElementById('user-name');
 const form = document.getElementById('transaction-form');
 const listElement = document.getElementById('transaction-list');
+const monthFilter = document.getElementById('month-filter'); 
 let chartInstance = null;
 let currentUser = null;
 let unsubscribe = null;
-let allTransactions = []; // Lista para exportação
+let allTransactions = []; // Todos os dados (Banco)
+let filteredTransactions = []; // Dados visíveis (Tela)
 
-// Inicializa Data
+// Inicializa Data e Filtro (Mês Atual)
 const dateInput = document.getElementById('date');
 if(dateInput) dateInput.valueAsDate = new Date();
+
+const hoje = new Date();
+const mesAtual = hoje.toISOString().slice(0, 7); // Ex: "2025-12"
+if(monthFilter) {
+    monthFilter.value = mesAtual;
+    monthFilter.addEventListener('change', aplicarFiltro);
+}
+
 if(window.lucide) lucide.createIcons();
 
-// --- LOGIN (Com Redirect para Celular) ---
+// --- NOTIFICAÇÕES (TOAST) ---
+function showToast(msg, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    const colors = type === 'error' ? 'bg-red-500' : 'bg-emerald-500';
+    const icon = type === 'error' ? 'alert-circle' : 'check-circle';
+    
+    toast.className = `${colors} text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 toast-enter min-w-[300px]`;
+    toast.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i><span class="font-medium text-sm">${msg}</span>`;
+    
+    container.appendChild(toast);
+    if(window.lucide) lucide.createIcons();
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-10px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// --- LOGIN ---
 loginBtn.addEventListener('click', async () => {
-    try { await signInWithRedirect(auth, provider); } catch (e) { alert("Erro login: " + e.message); }
+    try { await signInWithRedirect(auth, provider); } catch (e) { showToast("Erro login: " + e.message, 'error'); }
 });
 
 logoutBtn.addEventListener('click', () => signOut(auth));
@@ -57,30 +87,40 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// --- SALVAR NOVO ITEM ---
+// --- SALVAR (Com correção do Filtro) ---
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentUser) return;
+
     const desc = document.getElementById('desc').value;
     const amountVal = parseFloat(document.getElementById('amount').value);
     const dateVal = document.getElementById('date').value;
     const category = document.getElementById('category').value;
-    
     const type = categoryConfig[category].type;
     const finalAmount = type === 'expense' ? -Math.abs(amountVal) : Math.abs(amountVal);
 
     try {
         await addDoc(collection(db, "transactions"), {
-            uid: currentUser.uid, 
-            desc: desc, 
-            amount: finalAmount, 
-            date: dateVal, 
-            category: category, 
-            createdAt: new Date()
+            uid: currentUser.uid, desc: desc, amount: finalAmount, date: dateVal, category: category, createdAt: new Date()
         });
+        
+        showToast("Lançamento adicionado!");
+        
+        // CORREÇÃO: Se a data do lançamento for diferente do filtro atual, muda o filtro!
+        if(monthFilter && dateVal) {
+            const mesDoLancamento = dateVal.slice(0, 7);
+            if(monthFilter.value !== mesDoLancamento) {
+                monthFilter.value = mesDoLancamento;
+                aplicarFiltro(); // Força recarregar a lista
+            }
+        }
+
         form.reset();
         document.getElementById('date').valueAsDate = new Date();
-    } catch (error) { console.error("Erro ao salvar:", error); }
+    } catch (error) { 
+        showToast("Erro ao salvar", 'error');
+        console.error(error); 
+    }
 });
 
 // --- CARREGAR DADOS ---
@@ -90,24 +130,36 @@ function carregarDados(uid) {
         const transactions = [];
         snapshot.forEach(doc => { transactions.push({ id: doc.id, ...doc.data() }); });
         
-        // Ordena por data (Mais recente primeiro)
         transactions.sort((a, b) => {
             const dateA = a.date ? new Date(a.date) : new Date(0);
             const dateB = b.date ? new Date(b.date) : new Date(0);
             return dateB - dateA;
         });
         
-        allTransactions = transactions; // Salva na memória para o Excel usar
-        renderList(transactions); 
-        renderValues(transactions); 
-        renderChart(transactions);
+        allTransactions = transactions;
+        aplicarFiltro(); // Filtra assim que carrega
     });
+}
+
+// --- LÓGICA DO FILTRO ---
+function aplicarFiltro() {
+    const mesSelecionado = monthFilter.value; // Ex: "2025-12"
+    
+    if (!mesSelecionado) {
+        filteredTransactions = allTransactions;
+    } else {
+        filteredTransactions = allTransactions.filter(t => t.date && t.date.startsWith(mesSelecionado));
+    }
+
+    renderList(filteredTransactions);
+    renderValues(filteredTransactions);
+    renderChart(filteredTransactions);
 }
 
 function renderList(transactions) {
     listElement.innerHTML = '';
     if (transactions.length === 0) {
-        listElement.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-gray-400">Nenhuma movimentação ainda.</td></tr>';
+        listElement.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-gray-400">Nenhuma movimentação neste período.</td></tr>';
         return;
     }
     transactions.forEach(t => {
@@ -165,23 +217,26 @@ function renderChart(transactions) {
     });
 }
 
-// --- FUNÇÕES AUXILIARES ---
-
-// Formata data para BR (Resolve aquele erro de Timestamp)
 function formatarData(dateValue) {
     try {
         if (dateValue && typeof dateValue === 'string' && dateValue.includes('-')) {
             const parts = dateValue.split('-'); 
-            return `${parts[2]}/${parts[1]}/${parts[0]}`; // Vira DD/MM/AAAA
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
         } else if (dateValue && dateValue.seconds) {
             return new Date(dateValue.seconds * 1000).toLocaleDateString('pt-BR');
-        } else { 
-            return new Date().toLocaleDateString('pt-BR'); 
-        }
+        } else { return new Date().toLocaleDateString('pt-BR'); }
     } catch (e) { return "Data Inválida"; }
 }
 
-window.deletarItem = async (id) => { if(confirm("Apagar registro?")) { await deleteDoc(doc(db, "transactions", id)); } }
+// --- EDIÇÃO E REMOÇÃO ---
+window.deletarItem = async (id) => { 
+    if(confirm("Tem certeza que deseja apagar este registro?")) { 
+        try {
+            await deleteDoc(doc(db, "transactions", id));
+            showToast("Registro apagado!", 'success');
+        } catch(e) { showToast("Erro ao apagar", 'error'); }
+    } 
+}
 
 window.prepararEdicao = (id, desc, amount, date) => {
     document.getElementById('edit-modal').classList.remove('hidden');
@@ -206,39 +261,25 @@ document.getElementById('edit-form').addEventListener('submit', async (e) => {
     try {
         const docRef = doc(db, "transactions", id);
         await updateDoc(docRef, { desc: desc, amount: finalAmount, date: dateVal });
+        showToast("Registro atualizado!", 'success');
         fecharModal();
-    } catch (error) { console.error(error); alert("Erro ao editar!"); }
+    } catch (error) { showToast("Erro ao editar", 'error'); }
 });
 
-// --- EXPORTAÇÃO CORRIGIDA (AGORA VAI!) ---
+// --- EXPORTAR CSV (Excel BR) ---
 window.exportarCSV = () => {
-    if(!allTransactions.length) return alert("Nada para exportar!");
+    if(!filteredTransactions.length) return showToast("Nada para exportar neste mês!", 'error');
     
-    // 1. \uFEFF força o Excel a ler os acentos (BOM)
-    // 2. Usamos Ponto e Vírgula (;) que é o padrão Brasil
     let csvContent = "\uFEFFData;Descrição;Categoria;Valor\n";
-    
-    allTransactions.forEach(t => {
-        // Formata Dinheiro (1.500,00)
+    filteredTransactions.forEach(t => {
         const val = parseFloat(t.amount).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-        
-        // Limpa texto para não quebrar o CSV
         const safeDesc = (t.desc || "").replace(/;/g, " ").replace(/[\r\n]+/g, " ");
-        
-        // Formata Data
         const dataCerta = formatarData(t.date);
-
-        // TRADUZ A CATEGORIA (Pega o 'label' do config)
         let catTraduzida = t.category;
-        if(categoryConfig[t.category]) {
-            catTraduzida = categoryConfig[t.category].label;
-        }
-
-        // Monta a linha
+        if(categoryConfig[t.category]) { catTraduzida = categoryConfig[t.category].label; }
         csvContent += `${dataCerta};${safeDesc};${catTraduzida};${val}\n`;
     });
 
-    // Cria o arquivo
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
