@@ -1,6 +1,6 @@
 import { auth, db, provider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, collection, addDoc, query, where, onSnapshot, deleteDoc, doc, updateDoc } from "./firebase.js";
 
-// Configuração Visual das Categorias (AGORA COM MAIS OPÇÕES)
+// --- CONFIGURAÇÃO DAS CATEGORIAS (Tradutor) ---
 const categoryConfig = {
     salary: { label: 'Receita', icon: 'banknote', color: 'text-green-600', bg: 'bg-green-100', type: 'income' },
     freelance: { label: 'Freelance', icon: 'laptop', color: 'text-emerald-600', bg: 'bg-emerald-100', type: 'income' },
@@ -15,7 +15,7 @@ const categoryConfig = {
     other: { label: 'Outros', icon: 'package', color: 'text-gray-600', bg: 'bg-gray-100', type: 'expense' }
 };
 
-// Elementos
+// Elementos da Tela
 const loginScreen = document.getElementById('login-screen');
 const appScreen = document.getElementById('app-screen');
 const loginBtn = document.getElementById('login-btn');
@@ -26,13 +26,14 @@ const listElement = document.getElementById('transaction-list');
 let chartInstance = null;
 let currentUser = null;
 let unsubscribe = null;
-let allTransactions = []; // Guardar dados para exportação
+let allTransactions = []; // Lista para exportação
 
+// Inicializa Data
 const dateInput = document.getElementById('date');
 if(dateInput) dateInput.valueAsDate = new Date();
 if(window.lucide) lucide.createIcons();
 
-// --- LOGIN ---
+// --- LOGIN (Com Redirect para Celular) ---
 loginBtn.addEventListener('click', async () => {
     try { await signInWithRedirect(auth, provider); } catch (e) { alert("Erro login: " + e.message); }
 });
@@ -49,7 +50,6 @@ onAuthStateChanged(auth, (user) => {
     } else {
         currentUser = null;
         loginScreen.classList.remove('hidden');
-        appScreen.classList.remove('hidden'); // Exibe login
         appScreen.classList.add('hidden');
         if (unsubscribe) unsubscribe();
         listElement.innerHTML = '';
@@ -57,7 +57,7 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// --- SALVAR NOVO ---
+// --- SALVAR NOVO ITEM ---
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentUser) return;
@@ -65,12 +65,18 @@ form.addEventListener('submit', async (e) => {
     const amountVal = parseFloat(document.getElementById('amount').value);
     const dateVal = document.getElementById('date').value;
     const category = document.getElementById('category').value;
+    
     const type = categoryConfig[category].type;
     const finalAmount = type === 'expense' ? -Math.abs(amountVal) : Math.abs(amountVal);
 
     try {
         await addDoc(collection(db, "transactions"), {
-            uid: currentUser.uid, desc: desc, amount: finalAmount, date: dateVal, category: category, createdAt: new Date()
+            uid: currentUser.uid, 
+            desc: desc, 
+            amount: finalAmount, 
+            date: dateVal, 
+            category: category, 
+            createdAt: new Date()
         });
         form.reset();
         document.getElementById('date').valueAsDate = new Date();
@@ -84,14 +90,14 @@ function carregarDados(uid) {
         const transactions = [];
         snapshot.forEach(doc => { transactions.push({ id: doc.id, ...doc.data() }); });
         
-        // Ordena por data
+        // Ordena por data (Mais recente primeiro)
         transactions.sort((a, b) => {
             const dateA = a.date ? new Date(a.date) : new Date(0);
             const dateB = b.date ? new Date(b.date) : new Date(0);
             return dateB - dateA;
         });
         
-        allTransactions = transactions; // Salva para exportar depois
+        allTransactions = transactions; // Salva na memória para o Excel usar
         renderList(transactions); 
         renderValues(transactions); 
         renderChart(transactions);
@@ -108,15 +114,7 @@ function renderList(transactions) {
         const conf = categoryConfig[t.category] || categoryConfig['other'];
         const isExpense = t.amount < 0;
         const amountClass = isExpense ? 'text-red-600' : 'text-green-600';
-        let dataFormatada = "Data inválida";
-        try {
-            if (t.date && typeof t.date === 'string' && t.date.includes('-')) {
-                const parts = t.date.split('-'); 
-                dataFormatada = `${parts[2]}/${parts[1]}/${parts[0]}`;
-            } else if (t.date && t.date.seconds) {
-                dataFormatada = new Date(t.date.seconds * 1000).toLocaleDateString('pt-BR');
-            } else { dataFormatada = new Date().toLocaleDateString('pt-BR'); }
-        } catch (e) { console.log(e); }
+        const dataFormatada = formatarData(t.date);
 
         const row = document.createElement('tr');
         row.className = "hover:bg-gray-50/50 transition border-b border-gray-50 last:border-0";
@@ -143,6 +141,7 @@ function renderValues(transactions) {
     const elTotal = document.getElementById('display-total'); if(elTotal) elTotal.innerText = format(total);
     const elIncome = document.getElementById('display-income'); if(elIncome) elIncome.innerText = format(income);
     const elExpense = document.getElementById('display-expense'); if(elExpense) elExpense.innerText = format(Math.abs(expense));
+    
     const balMsg = document.getElementById('balance-msg');
     if (balMsg) {
         if(total < 0) { balMsg.innerHTML = '<i data-lucide="alert-circle" class="w-3 h-3"></i> Atenção: Saldo Negativo'; balMsg.className = "text-xs text-red-500 mt-2 flex items-center gap-1 font-bold"; } 
@@ -166,59 +165,84 @@ function renderChart(transactions) {
     });
 }
 
-// --- FUNÇÕES GLOBAIS (Janela de Edição + Deletar + Exportar) ---
+// --- FUNÇÕES AUXILIARES ---
+
+// Formata data para BR (Resolve aquele erro de Timestamp)
+function formatarData(dateValue) {
+    try {
+        if (dateValue && typeof dateValue === 'string' && dateValue.includes('-')) {
+            const parts = dateValue.split('-'); 
+            return `${parts[2]}/${parts[1]}/${parts[0]}`; // Vira DD/MM/AAAA
+        } else if (dateValue && dateValue.seconds) {
+            return new Date(dateValue.seconds * 1000).toLocaleDateString('pt-BR');
+        } else { 
+            return new Date().toLocaleDateString('pt-BR'); 
+        }
+    } catch (e) { return "Data Inválida"; }
+}
+
 window.deletarItem = async (id) => { if(confirm("Apagar registro?")) { await deleteDoc(doc(db, "transactions", id)); } }
 
-// Abre a janela de edição e preenche os campos
 window.prepararEdicao = (id, desc, amount, date) => {
     document.getElementById('edit-modal').classList.remove('hidden');
     document.getElementById('edit-id').value = id;
     document.getElementById('edit-desc').value = desc;
-    document.getElementById('edit-amount').value = Math.abs(amount); // Mostra positivo pra editar
+    document.getElementById('edit-amount').value = Math.abs(amount);
     document.getElementById('edit-date').value = date;
 }
 
 window.fecharModal = () => { document.getElementById('edit-modal').classList.add('hidden'); }
 
-// Salvar a edição
 document.getElementById('edit-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('edit-id').value;
     const desc = document.getElementById('edit-desc').value;
     const amountVal = parseFloat(document.getElementById('edit-amount').value);
     const dateVal = document.getElementById('edit-date').value;
-
-    // Lógica inteligente: mantemos o sinal (positivo ou negativo) que estava antes
     const original = allTransactions.find(t => t.id === id);
     const isExpense = original && original.amount < 0;
     const finalAmount = isExpense ? -Math.abs(amountVal) : Math.abs(amountVal);
 
     try {
         const docRef = doc(db, "transactions", id);
-        await updateDoc(docRef, {
-            desc: desc,
-            amount: finalAmount,
-            date: dateVal
-        });
+        await updateDoc(docRef, { desc: desc, amount: finalAmount, date: dateVal });
         fecharModal();
-    } catch (error) {
-        console.error("Erro ao editar:", error);
-        alert("Erro ao editar!");
-    }
+    } catch (error) { console.error(error); alert("Erro ao editar!"); }
 });
 
-// Exportar para CSV (Excel)
+// --- EXPORTAÇÃO CORRIGIDA (AGORA VAI!) ---
 window.exportarCSV = () => {
     if(!allTransactions.length) return alert("Nada para exportar!");
-    let csvContent = "data:text/csv;charset=utf-8,Data,Descrição,Categoria,Valor\n";
+    
+    // 1. \uFEFF força o Excel a ler os acentos (BOM)
+    // 2. Usamos Ponto e Vírgula (;) que é o padrão Brasil
+    let csvContent = "\uFEFFData;Descrição;Categoria;Valor\n";
+    
     allTransactions.forEach(t => {
-        const val = t.amount.toFixed(2).replace('.', ',');
-        csvContent += `${t.date},${t.desc},${t.category},"${val}"\n`;
+        // Formata Dinheiro (1.500,00)
+        const val = parseFloat(t.amount).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        
+        // Limpa texto para não quebrar o CSV
+        const safeDesc = (t.desc || "").replace(/;/g, " ").replace(/[\r\n]+/g, " ");
+        
+        // Formata Data
+        const dataCerta = formatarData(t.date);
+
+        // TRADUZ A CATEGORIA (Pega o 'label' do config)
+        let catTraduzida = t.category;
+        if(categoryConfig[t.category]) {
+            catTraduzida = categoryConfig[t.category].label;
+        }
+
+        // Monta a linha
+        csvContent += `${dataCerta};${safeDesc};${catTraduzida};${val}\n`;
     });
-    const encodedUri = encodeURI(csvContent);
+
+    // Cria o arquivo
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "meu_extrato_mywallet.csv");
+    link.href = URL.createObjectURL(blob);
+    link.download = "extrato_mywallet_br.csv";
     document.body.appendChild(link);
     link.click();
 }
