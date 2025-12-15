@@ -34,6 +34,7 @@ let filteredTransactions = []; // Dados visíveis (Tela)
 const dateInput = document.getElementById('date');
 if(dateInput) dateInput.valueAsDate = new Date();
 
+// Define filtro inicial como o mês atual
 const hoje = new Date();
 const mesAtual = hoje.toISOString().slice(0, 7); // Ex: "2025-12"
 if(monthFilter) {
@@ -46,6 +47,8 @@ if(window.lucide) lucide.createIcons();
 // --- NOTIFICAÇÕES (TOAST) ---
 function showToast(msg, type = 'success') {
     const container = document.getElementById('toast-container');
+    if(!container) return; // Segurança caso o HTML não tenha o container
+    
     const toast = document.createElement('div');
     const colors = type === 'error' ? 'bg-red-500' : 'bg-emerald-500';
     const icon = type === 'error' ? 'alert-circle' : 'check-circle';
@@ -106,13 +109,12 @@ form.addEventListener('submit', async (e) => {
         
         showToast("Lançamento adicionado!");
         
-        // CORREÇÃO: Se a data do lançamento for diferente do filtro atual, muda o filtro!
+        // CORREÇÃO: Força o filtro a ir para o mês do lançamento
         if(monthFilter && dateVal) {
             const mesDoLancamento = dateVal.slice(0, 7);
-            if(monthFilter.value !== mesDoLancamento) {
-                monthFilter.value = mesDoLancamento;
-                aplicarFiltro(); // Força recarregar a lista
-            }
+            monthFilter.value = mesDoLancamento; // Sempre define o mês do novo item
+            // O 'change' não dispara sozinho via código, então chamamos a função:
+            // Mas vamos esperar o Firestore avisar via onSnapshot
         }
 
         form.reset();
@@ -123,13 +125,31 @@ form.addEventListener('submit', async (e) => {
     }
 });
 
-// --- CARREGAR DADOS ---
+// --- CARREGAR DADOS (COM CORREÇÃO DE ERRO TELA BRANCA) ---
 function carregarDados(uid) {
     const q = query(collection(db, "transactions"), where("uid", "==", uid));
     unsubscribe = onSnapshot(q, (snapshot) => {
         const transactions = [];
-        snapshot.forEach(doc => { transactions.push({ id: doc.id, ...doc.data() }); });
+        snapshot.forEach(doc => { 
+            const data = doc.data();
+            
+            // --- AQUI ESTÁ A CORREÇÃO MÁGICA ---
+            // Se a data vier como Timestamp (antigo), converte para Texto
+            let dataCorrigida = data.date;
+            if(data.date && data.date.seconds) {
+                // Converte Timestamp seconds para "YYYY-MM-DD"
+                try {
+                    dataCorrigida = new Date(data.date.seconds * 1000).toISOString().split('T')[0];
+                } catch(e) {
+                    dataCorrigida = new Date().toISOString().split('T')[0]; // Data de hoje se der erro
+                }
+            }
+            // ------------------------------------
+
+            transactions.push({ id: doc.id, ...data, date: dataCorrigida }); 
+        });
         
+        // Ordena
         transactions.sort((a, b) => {
             const dateA = a.date ? new Date(a.date) : new Date(0);
             const dateB = b.date ? new Date(b.date) : new Date(0);
@@ -137,7 +157,7 @@ function carregarDados(uid) {
         });
         
         allTransactions = transactions;
-        aplicarFiltro(); // Filtra assim que carrega
+        aplicarFiltro(); // Aplica o filtro assim que os dados chegam
     });
 }
 
@@ -146,9 +166,14 @@ function aplicarFiltro() {
     const mesSelecionado = monthFilter.value; // Ex: "2025-12"
     
     if (!mesSelecionado) {
+        // Se não tiver mês selecionado, mostra tudo
         filteredTransactions = allTransactions;
     } else {
-        filteredTransactions = allTransactions.filter(t => t.date && t.date.startsWith(mesSelecionado));
+        // Filtra comparando o texto inicial da data (YYYY-MM)
+        filteredTransactions = allTransactions.filter(t => {
+            if(!t.date) return false;
+            return t.date.startsWith(mesSelecionado);
+        });
     }
 
     renderList(filteredTransactions);
@@ -176,8 +201,8 @@ function renderList(transactions) {
             <td class="p-4 text-sm text-gray-500">${dataFormatada}</td>
             <td class="p-4 text-right font-bold text-sm ${amountClass}">${isExpense ? '-' : '+'} ${Math.abs(t.amount).toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
             <td class="p-4 text-center flex justify-center gap-2">
-                <button onclick="prepararEdicao('${t.id}', '${t.desc}', ${t.amount}, '${t.date}')" class="text-gray-400 hover:text-indigo-500 transition"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-                <button onclick="deletarItem('${t.id}')" class="text-gray-400 hover:text-red-500 transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                <button onclick="prepararEdicao('${t.id}', '${t.desc}', ${t.amount}, '${t.date}')" class="text-gray-400 hover:text-indigo-500 transition" aria-label="Editar"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                <button onclick="deletarItem('${t.id}')" class="text-gray-400 hover:text-red-500 transition" aria-label="Excluir"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </td>`;
         listElement.appendChild(row);
     });
@@ -228,7 +253,7 @@ function formatarData(dateValue) {
     } catch (e) { return "Data Inválida"; }
 }
 
-// --- EDIÇÃO E REMOÇÃO ---
+// --- AÇÕES GLOBAIS ---
 window.deletarItem = async (id) => { 
     if(confirm("Tem certeza que deseja apagar este registro?")) { 
         try {
@@ -266,7 +291,7 @@ document.getElementById('edit-form').addEventListener('submit', async (e) => {
     } catch (error) { showToast("Erro ao editar", 'error'); }
 });
 
-// --- EXPORTAR CSV (Excel BR) ---
+// --- EXPORTAR CSV ---
 window.exportarCSV = () => {
     if(!filteredTransactions.length) return showToast("Nada para exportar neste mês!", 'error');
     
