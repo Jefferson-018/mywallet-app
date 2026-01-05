@@ -89,7 +89,7 @@
                     <select id="card-bank" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white">
                         <option value="nubank">🟣 Nubank (Roxo)</option>
                         <option value="itau">🟠 Itaú (Laranja)</option>
-                        <option value="santander">🔴 Santander (Vermelho)</option>
+                        <option value="bb">🟡 Banco do Brasil (Amarelo)</option> <option value="santander">🔴 Santander (Vermelho)</option>
                         <option value="bradesco">🔴 Bradesco (Vermelho)</option>
                         <option value="inter">🟠 Inter (Laranja)</option>
                         <option value="c6">⚫ C6 Bank (Carbono)</option>
@@ -98,7 +98,7 @@
                     </select>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
-                    <div><label for="card-name" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Nome</label><input type="text" id="card-name" placeholder="Ex: Nubank" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required></div>
+                    <div><label for="card-name" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Nome</label><input type="text" id="card-name" placeholder="Ex: Ourocard" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required></div>
                     <div><label for="card-last4" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Final 4</label><input type="text" id="card-last4" placeholder="1234" maxlength="4" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required></div>
                 </div>
                 <div><label for="card-bill" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Fatura Inicial</label><input type="text" id="card-bill" placeholder="R$ 0,00" onkeyup="formatarMoedaInput(this)" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required></div>
@@ -192,7 +192,7 @@
                         <div><label for="transaction-source" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Forma de Pagamento</label>
                             <select id="transaction-source" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white">
                                 <option value="wallet">💵 Carteira / Conta Corrente</option>
-                                </select>
+                            </select>
                         </div>
                         <button type="submit" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700">Adicionar</button>
                     </form>

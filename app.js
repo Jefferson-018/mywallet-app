@@ -14,9 +14,11 @@ const categoryConfig = {
     other: { label: 'Outros', icon: 'package', color: 'text-gray-600', bg: 'bg-gray-100', type: 'expense' }
 };
 
+// CORES DOS BANCOS (COM BB ADICIONADO)
 const bankStyles = {
     nubank: { bg: 'bg-gradient-to-br from-purple-600 to-purple-800', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg' },
     itau: { bg: 'bg-gradient-to-br from-orange-500 to-orange-600', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg' },
+    bb: { bg: 'bg-gradient-to-br from-yellow-400 to-yellow-600', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg' }, // BB AQUI
     santander: { bg: 'bg-gradient-to-br from-red-600 to-red-800', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg' },
     bradesco: { bg: 'bg-gradient-to-br from-red-600 to-red-700', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg' },
     inter: { bg: 'bg-gradient-to-br from-orange-400 to-orange-500', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg' },
@@ -136,7 +138,7 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// --- SALVAR TRANSAÇÃO (COM LÓGICA DE CARTÃO) ---
+// --- SALVAR TRANSAÇÃO ---
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentUser) return;
@@ -145,23 +147,21 @@ form.addEventListener('submit', async (e) => {
     if(amountVal <= 0) return alert("Valor inválido");
     const dateVal = document.getElementById('date').value;
     const category = document.getElementById('category').value;
-    const paymentSource = document.getElementById('transaction-source').value; // Novo campo
+    const paymentSource = document.getElementById('transaction-source').value;
     const type = categoryConfig[category].type;
     const finalAmount = type === 'expense' ? -Math.abs(amountVal) : Math.abs(amountVal);
 
     try {
-        // 1. Salvar a transação
         await addDoc(collection(db, "transactions"), { 
             uid: currentUser.uid, 
             desc: desc, 
             amount: finalAmount, 
             date: dateVal, 
             category: category, 
-            source: paymentSource, // Salva se foi carteira ou qual cartão
+            source: paymentSource, 
             createdAt: new Date() 
         });
 
-        // 2. Se for uma DESPESA e foi paga com CARTÃO, aumenta a fatura
         if (type === 'expense' && paymentSource !== 'wallet') {
             const card = allCards.find(c => c.id === paymentSource);
             if (card) {
@@ -185,7 +185,6 @@ form.addEventListener('submit', async (e) => {
 window.abrirModalCartao = () => document.getElementById('card-modal').classList.remove('hidden');
 window.fecharModalCartao = () => document.getElementById('card-modal').classList.add('hidden');
 
-// Modal de EDIÇÃO de Cartão (Novo)
 window.prepararEdicaoCartao = (id) => {
     const card = allCards.find(c => c.id === id);
     if (!card) return;
@@ -196,7 +195,6 @@ window.prepararEdicaoCartao = (id) => {
 }
 window.fecharModalEdicaoCartao = () => document.getElementById('edit-card-modal').classList.add('hidden');
 
-// Salvar Novo Cartão
 cardForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if(!currentUser) return;
@@ -212,7 +210,6 @@ cardForm.addEventListener('submit', async (e) => {
     } catch(e) { alert("Erro"); }
 });
 
-// Salvar Edição do Cartão
 editCardForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('edit-card-id').value;
@@ -249,11 +246,10 @@ function carregarCartoes(uid) {
         allCards = [];
         snapshot.forEach(doc => allCards.push({ id: doc.id, ...doc.data() }));
         renderCards(allCards);
-        popularSelectCartoes(allCards); // Atualiza o dropdown
+        popularSelectCartoes(allCards);
     });
 }
 
-// Popula o dropdown "Forma de Pagamento"
 function popularSelectCartoes(cards) {
     const defaultOption = '<option value="wallet">💵 Carteira / Conta Corrente</option>';
     let options = defaultOption;
@@ -306,7 +302,6 @@ function renderCards(cards) {
 window.deletarItem = async (id) => { if(confirm("Apagar?")) await deleteDoc(doc(db, "transactions", id)); }
 window.deletarCartao = async (id) => { if(confirm("Remover este cartão?")) await deleteDoc(doc(db, "cards", id)); }
 
-// Transação - Edição
 window.prepararEdicao = (id) => { 
     const t = allTransactions.find(item => item.id === id);
     if (!t) return;
