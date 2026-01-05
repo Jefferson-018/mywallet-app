@@ -42,7 +42,7 @@
             </div>
             <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">MyWallet</h1>
             <button id="login-btn" class="w-full py-3.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-white font-semibold rounded-xl transition flex items-center justify-center gap-3 shadow-sm group">
-                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google Logo" class="w-5 h-5 group-hover:scale-110 transition">
+                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" class="w-5 h-5 group-hover:scale-110 transition">
                 Entrar com Google
             </button>
         </div>
@@ -53,19 +53,10 @@
             <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-600 dark:text-indigo-400"><i data-lucide="pencil"></i> Editar Transação</h3>
             <form id="edit-form" class="space-y-4">
                 <input type="hidden" id="edit-id">
-                <div>
-                    <label for="edit-desc" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Descrição</label>
-                    <input type="text" id="edit-desc" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
-                </div>
+                <div><label for="edit-desc" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Descrição</label><input type="text" id="edit-desc" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required></div>
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label for="edit-amount" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Valor</label>
-                        <input type="text" id="edit-amount" onkeyup="formatarMoedaInput(this)" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
-                    </div>
-                    <div>
-                        <label for="edit-date" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Data</label>
-                        <input type="date" id="edit-date" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
-                    </div>
+                    <div><label for="edit-amount" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Valor</label><input type="text" id="edit-amount" onkeyup="formatarMoedaInput(this)" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required></div>
+                    <div><label for="edit-date" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Data</label><input type="date" id="edit-date" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required></div>
                 </div>
                 <div class="flex gap-3 mt-6">
                     <button type="button" onclick="fecharModal()" class="flex-1 py-3 bg-gray-200 dark:bg-gray-600 rounded-xl">Cancelar</button>
@@ -75,12 +66,26 @@
         </div>
     </div>
 
+    <div id="edit-card-modal" class="hidden fixed inset-0 z-[70] bg-black/50 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white dark:bg-darkcard p-6 rounded-2xl w-full max-w-md shadow-2xl m-4 fade-in">
+            <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-600 dark:text-indigo-400"><i data-lucide="credit-card"></i> Editar Cartão</h3>
+            <form id="edit-card-form" class="space-y-4">
+                <input type="hidden" id="edit-card-id">
+                <div><label for="edit-card-name" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Nome</label><input type="text" id="edit-card-name" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required></div>
+                <div><label for="edit-card-bill" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Valor Fatura Atual</label><input type="text" id="edit-card-bill" onkeyup="formatarMoedaInput(this)" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required></div>
+                <div class="flex gap-3 mt-6">
+                    <button type="button" onclick="fecharModalEdicaoCartao()" class="flex-1 py-3 bg-gray-200 dark:bg-gray-600 rounded-xl">Cancelar</button>
+                    <button type="submit" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="card-modal" class="hidden fixed inset-0 z-[70] bg-black/50 flex items-center justify-center backdrop-blur-sm">
         <div class="bg-white dark:bg-darkcard p-6 rounded-2xl w-full max-w-md shadow-2xl m-4 fade-in">
-            <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-600 dark:text-indigo-400"><i data-lucide="credit-card"></i> Novo Cartão</h3>
+            <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-600 dark:text-indigo-400"><i data-lucide="plus-circle"></i> Novo Cartão</h3>
             <form id="card-form" class="space-y-4">
-                <div>
-                    <label for="card-bank" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Banco / Cor</label>
+                <div><label for="card-bank" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Banco / Cor</label>
                     <select id="card-bank" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white">
                         <option value="nubank">🟣 Nubank (Roxo)</option>
                         <option value="itau">🟠 Itaú (Laranja)</option>
@@ -93,20 +98,10 @@
                     </select>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label for="card-name" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Nome do Cartão</label>
-                        <input type="text" id="card-name" placeholder="Ex: Nubank" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
-                    </div>
-                    <div>
-                        <label for="card-last4" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Final (4 dígitos)</label>
-                        <input type="text" id="card-last4" placeholder="1234" maxlength="4" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
-                    </div>
+                    <div><label for="card-name" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Nome</label><input type="text" id="card-name" placeholder="Ex: Nubank" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required></div>
+                    <div><label for="card-last4" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Final 4</label><input type="text" id="card-last4" placeholder="1234" maxlength="4" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required></div>
                 </div>
-                <div>
-                    <label for="card-bill" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Valor Fatura Atual</label>
-                    <input type="text" id="card-bill" placeholder="R$ 0,00" onkeyup="formatarMoedaInput(this)" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
-                </div>
-                
+                <div><label for="card-bill" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Fatura Inicial</label><input type="text" id="card-bill" placeholder="R$ 0,00" onkeyup="formatarMoedaInput(this)" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required></div>
                 <div class="flex gap-3 mt-6">
                     <button type="button" onclick="fecharModalCartao()" class="flex-1 py-3 bg-gray-200 dark:bg-gray-600 rounded-xl">Cancelar</button>
                     <button type="submit" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl">Criar Cartão</button>
@@ -123,13 +118,9 @@
                     <span class="text-xl font-bold dark:text-white">MyWallet</span>
                 </div>
                 <div class="flex items-center gap-4">
-                    <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300" aria-label="Alternar Tema">
-                        <i data-lucide="moon" id="theme-icon" class="w-5 h-5"></i>
-                    </button>
+                    <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300" aria-label="Tema"><i data-lucide="moon" id="theme-icon" class="w-5 h-5"></i></button>
                     <span id="user-name" class="text-sm font-medium hidden sm:block dark:text-gray-300">...</span>
-                    <button id="logout-btn" class="text-red-500 hover:text-red-700" aria-label="Sair">
-                        <i data-lucide="log-out" class="w-5 h-5"></i>
-                    </button>
+                    <button id="logout-btn" class="text-red-500 hover:text-red-700" aria-label="Sair"><i data-lucide="log-out" class="w-5 h-5"></i></button>
                 </div>
             </div>
         </nav>
@@ -158,8 +149,7 @@
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                         <i data-lucide="credit-card" class="w-5 h-5 text-indigo-500"></i> Meus Cartões
                     </h3>
-                    <div id="cards-container" class="flex overflow-x-auto gap-4 pb-4 hide-scroll">
-                        </div>
+                    <div id="cards-container" class="flex overflow-x-auto gap-4 pb-4 hide-scroll"></div>
                 </div>
 
                 <div class="lg:col-span-2 bg-white dark:bg-darkcard p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
@@ -179,22 +169,12 @@
                 <div class="lg:col-span-1 bg-white dark:bg-darkcard p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Adicionar Movimentação</h3>
                     <form id="transaction-form" class="space-y-4">
-                        <div>
-                            <label for="desc" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Descrição</label>
-                            <input type="text" id="desc" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
-                        </div>
+                        <div><label for="desc" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Descrição</label><input type="text" id="desc" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required></div>
                         <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label for="amount" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Valor</label>
-                                <input type="text" id="amount" onkeyup="formatarMoedaInput(this)" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
-                            </div>
-                            <div>
-                                <label for="date" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Data</label>
-                                <input type="date" id="date" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
-                            </div>
+                            <div><label for="amount" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Valor</label><input type="text" id="amount" onkeyup="formatarMoedaInput(this)" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required></div>
+                            <div><label for="date" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Data</label><input type="date" id="date" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required></div>
                         </div>
-                        <div>
-                            <label for="category" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Categoria</label>
+                        <div><label for="category" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Categoria</label>
                             <select id="category" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white">
                                 <option value="salary">💸 Receita</option>
                                 <option value="freelance">💻 Freelance</option>
@@ -209,6 +189,11 @@
                                 <option value="other">📦 Outros</option>
                             </select>
                         </div>
+                        <div><label for="transaction-source" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Forma de Pagamento</label>
+                            <select id="transaction-source" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white">
+                                <option value="wallet">💵 Carteira / Conta Corrente</option>
+                                </select>
+                        </div>
                         <button type="submit" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700">Adicionar</button>
                     </form>
                 </div>
@@ -216,10 +201,8 @@
                     <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">Histórico</h3>
                         <div class="flex gap-2">
-                            <select id="month-filter" class="px-3 py-1 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-lg text-sm dark:text-white" aria-label="Filtrar por mês"></select>
-                            <button onclick="exportarCSV()" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm dark:text-white" aria-label="Exportar para CSV">
-                                <i data-lucide="download" class="w-4 h-4"></i>
-                            </button>
+                            <select id="month-filter" class="px-3 py-1 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-lg text-sm dark:text-white" aria-label="Filtro"></select>
+                            <button onclick="exportarCSV()" class="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm dark:text-white" aria-label="CSV"><i data-lucide="download" class="w-4 h-4"></i></button>
                         </div>
                     </div>
                     <div class="overflow-x-auto"><table class="w-full text-left"><tbody id="transaction-list" class="divide-y divide-gray-100 dark:divide-gray-700"></tbody></table></div>

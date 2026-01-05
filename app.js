@@ -1,6 +1,5 @@
 import { auth, db, provider, signInWithPopup, signOut, onAuthStateChanged, collection, addDoc, query, where, onSnapshot, deleteDoc, doc, updateDoc } from "./firebase.js";
 
-// CONFIGURAÇÃO DE CATEGORIAS
 const categoryConfig = {
     salary: { label: 'Receita', icon: 'banknote', color: 'text-green-600', bg: 'bg-green-100', type: 'income' },
     freelance: { label: 'Freelance', icon: 'laptop', color: 'text-emerald-600', bg: 'bg-emerald-100', type: 'income' },
@@ -15,7 +14,6 @@ const categoryConfig = {
     other: { label: 'Outros', icon: 'package', color: 'text-gray-600', bg: 'bg-gray-100', type: 'expense' }
 };
 
-// CORES DOS BANCOS (GRADIENTES)
 const bankStyles = {
     nubank: { bg: 'bg-gradient-to-br from-purple-600 to-purple-800', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg' },
     itau: { bg: 'bg-gradient-to-br from-orange-500 to-orange-600', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg' },
@@ -27,7 +25,6 @@ const bankStyles = {
     green: { bg: 'bg-gradient-to-br from-emerald-500 to-emerald-700', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg' }
 };
 
-// ELEMENTOS GLOBAIS
 const loginScreen = document.getElementById('login-screen');
 const appScreen = document.getElementById('app-screen');
 const loadingScreen = document.getElementById('loading-screen');
@@ -36,11 +33,13 @@ const logoutBtn = document.getElementById('logout-btn');
 const userNameDisplay = document.getElementById('user-name');
 const form = document.getElementById('transaction-form');
 const cardForm = document.getElementById('card-form');
+const editCardForm = document.getElementById('edit-card-form');
 const listElement = document.getElementById('transaction-list');
 const cardsContainer = document.getElementById('cards-container');
 const monthFilter = document.getElementById('month-filter');
 const themeToggle = document.getElementById('theme-toggle');
 const themeIcon = document.getElementById('theme-icon');
+const sourceSelect = document.getElementById('transaction-source');
 
 let donutChartInstance = null;
 let lineChartInstance = null;
@@ -49,6 +48,7 @@ let unsubscribeTrans = null;
 let unsubscribeCards = null;
 let allTransactions = []; 
 let filteredTransactions = []; 
+let allCards = [];
 
 if(window.lucide) lucide.createIcons();
 const dateInput = document.getElementById('date');
@@ -71,7 +71,6 @@ if(themeToggle) {
     });
 }
 
-// --- HELPER FUNCTIONS ---
 function toggleLoading(show) {
     if(show) loadingScreen.classList.remove('opacity-0', 'pointer-events-none');
     else { loadingScreen.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => loadingScreen.style.display = 'none', 500); }
@@ -85,7 +84,8 @@ window.formatarMoedaInput = (input) => {
 
 function limparValorMoeda(valorString) {
     if (!valorString) return 0;
-    return valorString.replace(/\D/g, "") / 100;
+    if (typeof valorString === 'number') return valorString;
+    return Number(valorString.replace(/\./g, '').replace(',', '.').replace('R$', '').trim());
 }
 
 function popularSeletorMeses() {
@@ -136,7 +136,7 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// --- SALVAR TRANSAÇÃO ---
+// --- SALVAR TRANSAÇÃO (COM LÓGICA DE CARTÃO) ---
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentUser) return;
@@ -145,11 +145,32 @@ form.addEventListener('submit', async (e) => {
     if(amountVal <= 0) return alert("Valor inválido");
     const dateVal = document.getElementById('date').value;
     const category = document.getElementById('category').value;
+    const paymentSource = document.getElementById('transaction-source').value; // Novo campo
     const type = categoryConfig[category].type;
     const finalAmount = type === 'expense' ? -Math.abs(amountVal) : Math.abs(amountVal);
 
     try {
-        await addDoc(collection(db, "transactions"), { uid: currentUser.uid, desc: desc, amount: finalAmount, date: dateVal, category: category, createdAt: new Date() });
+        // 1. Salvar a transação
+        await addDoc(collection(db, "transactions"), { 
+            uid: currentUser.uid, 
+            desc: desc, 
+            amount: finalAmount, 
+            date: dateVal, 
+            category: category, 
+            source: paymentSource, // Salva se foi carteira ou qual cartão
+            createdAt: new Date() 
+        });
+
+        // 2. Se for uma DESPESA e foi paga com CARTÃO, aumenta a fatura
+        if (type === 'expense' && paymentSource !== 'wallet') {
+            const card = allCards.find(c => c.id === paymentSource);
+            if (card) {
+                const novaFatura = (card.bill || 0) + Math.abs(amountVal);
+                await updateDoc(doc(db, "cards", paymentSource), { bill: novaFatura });
+                showToast(`Fatura do ${card.name} atualizada!`);
+            }
+        }
+
         showToast("Salvo!");
         if(monthFilter && dateVal && monthFilter.value !== dateVal.slice(0, 7)) {
             monthFilter.value = dateVal.slice(0, 7);
@@ -157,35 +178,51 @@ form.addEventListener('submit', async (e) => {
         }
         form.reset();
         document.getElementById('date').valueAsDate = new Date();
-    } catch (e) { alert("Erro ao salvar"); }
+    } catch (e) { alert("Erro ao salvar"); console.error(e); }
 });
 
-// --- SALVAR NOVO CARTÃO ---
+// --- FUNÇÕES DE CARTÃO ---
 window.abrirModalCartao = () => document.getElementById('card-modal').classList.remove('hidden');
 window.fecharModalCartao = () => document.getElementById('card-modal').classList.add('hidden');
 
+// Modal de EDIÇÃO de Cartão (Novo)
+window.prepararEdicaoCartao = (id) => {
+    const card = allCards.find(c => c.id === id);
+    if (!card) return;
+    document.getElementById('edit-card-modal').classList.remove('hidden');
+    document.getElementById('edit-card-id').value = id;
+    document.getElementById('edit-card-name').value = card.name;
+    document.getElementById('edit-card-bill').value = (card.bill || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+window.fecharModalEdicaoCartao = () => document.getElementById('edit-card-modal').classList.add('hidden');
+
+// Salvar Novo Cartão
 cardForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if(!currentUser) return;
-    
     const bank = document.getElementById('card-bank').value;
     const name = document.getElementById('card-name').value;
     const last4 = document.getElementById('card-last4').value;
     const bill = limparValorMoeda(document.getElementById('card-bill').value);
-
     try {
-        await addDoc(collection(db, "cards"), {
-            uid: currentUser.uid,
-            bank: bank,
-            name: name,
-            last4: last4,
-            bill: bill,
-            createdAt: new Date()
-        });
+        await addDoc(collection(db, "cards"), { uid: currentUser.uid, bank, name, last4, bill, createdAt: new Date() });
         showToast("Cartão Criado!");
         fecharModalCartao();
         cardForm.reset();
-    } catch(e) { alert("Erro ao criar cartão"); console.error(e); }
+    } catch(e) { alert("Erro"); }
+});
+
+// Salvar Edição do Cartão
+editCardForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('edit-card-id').value;
+    const name = document.getElementById('edit-card-name').value;
+    const bill = limparValorMoeda(document.getElementById('edit-card-bill').value);
+    try {
+        await updateDoc(doc(db, "cards", id), { name, bill });
+        showToast("Cartão Atualizado!");
+        fecharModalEdicaoCartao();
+    } catch(e) { alert("Erro ao editar cartão"); }
 });
 
 // --- CARREGAR DADOS ---
@@ -206,19 +243,28 @@ function carregarDados(uid) {
     });
 }
 
-// --- CARREGAR CARTÕES ---
 function carregarCartoes(uid) {
     const q = query(collection(db, "cards"), where("uid", "==", uid));
     unsubscribeCards = onSnapshot(q, (snapshot) => {
-        const cards = [];
-        snapshot.forEach(doc => cards.push({ id: doc.id, ...doc.data() }));
-        renderCards(cards);
+        allCards = [];
+        snapshot.forEach(doc => allCards.push({ id: doc.id, ...doc.data() }));
+        renderCards(allCards);
+        popularSelectCartoes(allCards); // Atualiza o dropdown
     });
+}
+
+// Popula o dropdown "Forma de Pagamento"
+function popularSelectCartoes(cards) {
+    const defaultOption = '<option value="wallet">💵 Carteira / Conta Corrente</option>';
+    let options = defaultOption;
+    cards.forEach(card => {
+        options += `<option value="${card.id}">💳 Cartão ${card.name} (Final ${card.last4})</option>`;
+    });
+    sourceSelect.innerHTML = options;
 }
 
 function renderCards(cards) {
     cardsContainer.innerHTML = '';
-    
     cards.forEach(card => {
         const style = bankStyles[card.bank] || bankStyles['blue'];
         const cardHtml = `
@@ -227,17 +273,20 @@ function renderCards(cards) {
                 <div class="flex justify-between items-start z-10">
                     <span class="font-bold tracking-wider">${card.name}</span>
                     <div class="flex gap-2">
+                        <button onclick="prepararEdicaoCartao('${card.id}')" aria-label="Editar" class="opacity-50 hover:opacity-100 transition"><i data-lucide="pencil" class="w-4 h-4 text-white"></i></button>
                         <i data-lucide="nfc" class="w-6 h-6 opacity-70"></i>
-                        <button onclick="deletarCartao('${card.id}')" class="opacity-50 hover:opacity-100 transition"><i data-lucide="trash" class="w-4 h-4 text-white"></i></button>
                     </div>
                 </div>
                 <div class="z-10">
                     <p class="text-xs text-white/80 mb-1">Fatura Atual</p>
-                    <p class="text-2xl font-bold">${card.bill.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</p>
+                    <p class="text-2xl font-bold">${(card.bill || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</p>
                 </div>
                 <div class="flex justify-between items-end z-10">
                     <p class="text-sm tracking-widest">**** ${card.last4}</p>
-                    <img src="${style.logo}" class="h-6 opacity-80 bg-white/20 rounded px-1">
+                    <div class="flex items-center gap-2">
+                        <button onclick="deletarCartao('${card.id}')" aria-label="Excluir" class="opacity-50 hover:opacity-100 transition"><i data-lucide="trash" class="w-4 h-4 text-white"></i></button>
+                        <img src="${style.logo}" class="h-6 opacity-80 bg-white/20 rounded px-1" alt="Logo Banco">
+                    </div>
                 </div>
             </div>
         `;
@@ -245,18 +294,61 @@ function renderCards(cards) {
     });
 
     const addBtnHtml = `
-        <div onclick="abrirModalCartao()" class="min-w-[100px] h-44 bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition" role="button" aria-label="Adicionar Cartão">
+        <button onclick="abrirModalCartao()" class="min-w-[100px] h-44 bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition" aria-label="Adicionar Cartão">
             <i data-lucide="plus" class="w-8 h-8 mb-2"></i>
             <span class="text-xs font-medium">Novo</span>
-        </div>
+        </button>
     `;
     cardsContainer.innerHTML += addBtnHtml;
     if(window.lucide) lucide.createIcons();
 }
 
+window.deletarItem = async (id) => { if(confirm("Apagar?")) await deleteDoc(doc(db, "transactions", id)); }
 window.deletarCartao = async (id) => { if(confirm("Remover este cartão?")) await deleteDoc(doc(db, "cards", id)); }
 
-// --- OUTRAS FUNÇÕES ---
+// Transação - Edição
+window.prepararEdicao = (id) => { 
+    const t = allTransactions.find(item => item.id === id);
+    if (!t) return;
+    document.getElementById('edit-modal').classList.remove('hidden');
+    document.getElementById('edit-id').value = id;
+    document.getElementById('edit-desc').value = t.desc;
+    document.getElementById('edit-amount').value = Math.abs(t.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+    document.getElementById('edit-date').value = t.date;
+}
+window.fecharModal = () => document.getElementById('edit-modal').classList.add('hidden');
+
+document.getElementById('edit-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('edit-id').value;
+    const desc = document.getElementById('edit-desc').value;
+    const amountVal = limparValorMoeda(document.getElementById('edit-amount').value);
+    const dateVal = document.getElementById('edit-date').value;
+    
+    const original = allTransactions.find(t => t.id === id);
+    const isExpense = original && original.amount < 0;
+    const finalAmount = isExpense ? -Math.abs(amountVal) : Math.abs(amountVal);
+    
+    try { await updateDoc(doc(db, "transactions", id), { desc: desc, amount: finalAmount, date: dateVal }); showToast("Editado!"); fecharModal(); } catch (e) { alert("Erro"); }
+});
+
+window.exportarCSV = () => {
+    if(!filteredTransactions.length) return showToast("Nada para exportar!");
+    let csv = "\uFEFFData;Descrição;Valor;Categoria;Pagamento\n";
+    filteredTransactions.forEach(t => {
+        let fonte = "Carteira";
+        if(t.source && t.source !== 'wallet') {
+            const card = allCards.find(c => c.id === t.source);
+            fonte = card ? `Cartão ${card.name}` : "Cartão (Removido)";
+        }
+        csv += `${formatarData(t.date)};${t.desc};${t.amount.toLocaleString('pt-BR')};${categoryConfig[t.category]?.label || t.category};${fonte}\n`;
+    });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    link.download = "extrato.csv";
+    link.click();
+}
+
 function aplicarFiltro() {
     const mesSelecionado = monthFilter.value; 
     if (!mesSelecionado) { filteredTransactions = allTransactions; } 
@@ -315,14 +407,20 @@ function renderList(transactions) {
     transactions.forEach(t => {
         const conf = categoryConfig[t.category] || categoryConfig['other'];
         const isExpense = t.amount < 0;
+        let fonteIcone = '';
+        if(t.source && t.source !== 'wallet') fonteIcone = '<i data-lucide="credit-card" class="w-3 h-3 text-indigo-500 ml-1"></i>';
+
         const row = document.createElement('tr');
         row.className = "hover:bg-gray-50 dark:hover:bg-gray-800 transition border-b border-gray-100 dark:border-gray-700";
         row.innerHTML = `
             <td class="p-4"><div class="flex items-center gap-2"><div class="p-2 rounded ${conf.bg} dark:bg-opacity-20 ${conf.color}"><i data-lucide="${conf.icon}" class="w-4 h-4"></i></div><span class="text-sm dark:text-gray-200">${conf.label}</span></div></td>
-            <td class="p-4 text-sm dark:text-gray-300">${t.desc}</td>
+            <td class="p-4 text-sm dark:text-gray-300 flex items-center">${t.desc} ${fonteIcone}</td>
             <td class="p-4 text-sm text-gray-500">${formatarData(t.date)}</td>
             <td class="p-4 text-right font-bold text-sm ${isExpense ? 'text-red-500' : 'text-green-500'}">${Math.abs(t.amount).toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
-            <td class="p-4 text-center"><button onclick="deletarItem('${t.id}')" aria-label="Excluir"><i data-lucide="trash-2" class="w-4 h-4 text-gray-400 hover:text-red-500"></i></button></td>`;
+            <td class="p-4 text-center flex justify-center gap-2">
+                <button onclick="prepararEdicao('${t.id}')" aria-label="Editar" class="text-gray-400 hover:text-indigo-500 transition"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                <button onclick="deletarItem('${t.id}')" aria-label="Excluir" class="text-gray-400 hover:text-red-500 transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </td>`;
         listElement.appendChild(row);
     });
     if(window.lucide) lucide.createIcons();
@@ -347,25 +445,3 @@ function showToast(msg) {
     t.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> ${msg}`;
     c.appendChild(t); setTimeout(() => t.remove(), 3000);
 }
-
-window.deletarItem = async (id) => { if(confirm("Apagar?")) await deleteDoc(doc(db, "transactions", id)); }
-window.prepararEdicao = (id, d, a, dt) => { 
-    document.getElementById('edit-modal').classList.remove('hidden');
-    document.getElementById('edit-id').value = id;
-    document.getElementById('edit-desc').value = d;
-    document.getElementById('edit-amount').value = a.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-    document.getElementById('edit-date').value = dt;
-}
-window.fecharModal = () => document.getElementById('edit-modal').classList.add('hidden');
-document.getElementById('edit-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const id = document.getElementById('edit-id').value;
-    const desc = document.getElementById('edit-desc').value;
-    const amountVal = limparValorMoeda(document.getElementById('edit-amount').value);
-    const dateVal = document.getElementById('edit-date').value;
-    const original = allTransactions.find(t => t.id === id);
-    const isExpense = original && original.amount < 0;
-    const finalAmount = isExpense ? -Math.abs(amountVal) : Math.abs(amountVal);
-    try { await updateDoc(doc(db, "transactions", id), { desc: desc, amount: finalAmount, date: dateVal }); fecharModal(); } catch (e) { alert("Erro"); }
-});
-window.exportarCSV = () => { /* Mesma lógica */ }
