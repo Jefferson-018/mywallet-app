@@ -19,11 +19,8 @@
         .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
         .fade-in { animation: fadeIn 0.5s ease-in-out; }
         .toast-enter { animation: slideIn 0.3s ease-out forwards; }
-        
-        /* Scrollbar escondida (Compatível com todos os navegadores) */
         .hide-scroll::-webkit-scrollbar { display: none; }
         .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
-        
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #4f46e5; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
@@ -44,9 +41,8 @@
                 <i data-lucide="wallet" class="text-white w-8 h-8"></i>
             </div>
             <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">MyWallet</h1>
-            <p class="text-gray-500 dark:text-gray-400 mb-8">Gerencie suas finanças com inteligência.</p>
             <button id="login-btn" class="w-full py-3.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-white font-semibold rounded-xl transition flex items-center justify-center gap-3 shadow-sm group">
-                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Logo do Google" class="w-5 h-5 group-hover:scale-110 transition">
+                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google Logo" class="w-5 h-5 group-hover:scale-110 transition">
                 Entrar com Google
             </button>
         </div>
@@ -54,7 +50,7 @@
 
     <div id="edit-modal" class="hidden fixed inset-0 z-[70] bg-black/50 flex items-center justify-center backdrop-blur-sm">
         <div class="bg-white dark:bg-darkcard p-6 rounded-2xl w-full max-w-md shadow-2xl m-4 fade-in">
-            <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-600 dark:text-indigo-400"><i data-lucide="pencil"></i> Editar</h3>
+            <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-600 dark:text-indigo-400"><i data-lucide="pencil"></i> Editar Transação</h3>
             <form id="edit-form" class="space-y-4">
                 <input type="hidden" id="edit-id">
                 <div>
@@ -74,6 +70,46 @@
                 <div class="flex gap-3 mt-6">
                     <button type="button" onclick="fecharModal()" class="flex-1 py-3 bg-gray-200 dark:bg-gray-600 rounded-xl">Cancelar</button>
                     <button type="submit" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="card-modal" class="hidden fixed inset-0 z-[70] bg-black/50 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-white dark:bg-darkcard p-6 rounded-2xl w-full max-w-md shadow-2xl m-4 fade-in">
+            <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-600 dark:text-indigo-400"><i data-lucide="credit-card"></i> Novo Cartão</h3>
+            <form id="card-form" class="space-y-4">
+                <div>
+                    <label for="card-bank" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Banco / Cor</label>
+                    <select id="card-bank" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white">
+                        <option value="nubank">🟣 Nubank (Roxo)</option>
+                        <option value="itau">🟠 Itaú (Laranja)</option>
+                        <option value="santander">🔴 Santander (Vermelho)</option>
+                        <option value="bradesco">🔴 Bradesco (Vermelho)</option>
+                        <option value="inter">🟠 Inter (Laranja)</option>
+                        <option value="c6">⚫ C6 Bank (Carbono)</option>
+                        <option value="blue">🔵 Genérico (Azul)</option>
+                        <option value="green">🟢 Genérico (Verde)</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="card-name" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Nome do Cartão</label>
+                        <input type="text" id="card-name" placeholder="Ex: Nubank" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
+                    </div>
+                    <div>
+                        <label for="card-last4" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Final (4 dígitos)</label>
+                        <input type="text" id="card-last4" placeholder="1234" maxlength="4" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
+                    </div>
+                </div>
+                <div>
+                    <label for="card-bill" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Valor Fatura Atual</label>
+                    <input type="text" id="card-bill" placeholder="R$ 0,00" onkeyup="formatarMoedaInput(this)" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
+                </div>
+                
+                <div class="flex gap-3 mt-6">
+                    <button type="button" onclick="fecharModalCartao()" class="flex-1 py-3 bg-gray-200 dark:bg-gray-600 rounded-xl">Cancelar</button>
+                    <button type="submit" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl">Criar Cartão</button>
                 </div>
             </form>
         </div>
@@ -99,20 +135,17 @@
         </nav>
 
         <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-            
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="bg-emerald-500 p-6 rounded-2xl shadow-lg shadow-emerald-500/20 text-white card-hover relative overflow-hidden">
                     <div class="absolute right-0 top-0 opacity-10 transform translate-x-2 -translate-y-2"><i data-lucide="arrow-up-circle" class="w-24 h-24"></i></div>
-                    <p class="text-emerald-100 text-sm font-medium mb-1">Entradas do Mês</p>
+                    <p class="text-emerald-100 text-sm font-medium mb-1">Entradas</p>
                     <h3 class="text-3xl font-bold" id="display-income">R$ 0,00</h3>
                 </div>
-                
                 <div class="bg-red-500 p-6 rounded-2xl shadow-lg shadow-red-500/20 text-white card-hover relative overflow-hidden">
                     <div class="absolute right-0 top-0 opacity-10 transform translate-x-2 -translate-y-2"><i data-lucide="arrow-down-circle" class="w-24 h-24"></i></div>
-                    <p class="text-red-100 text-sm font-medium mb-1">Saídas do Mês</p>
+                    <p class="text-red-100 text-sm font-medium mb-1">Saídas</p>
                     <h3 class="text-3xl font-bold" id="display-expense">R$ 0,00</h3>
                 </div>
-
                 <div class="bg-blue-600 p-6 rounded-2xl shadow-lg shadow-blue-600/20 text-white card-hover relative overflow-hidden">
                     <div class="absolute right-0 top-0 opacity-10 transform translate-x-2 -translate-y-2"><i data-lucide="wallet" class="w-24 h-24"></i></div>
                     <p class="text-blue-100 text-sm font-medium mb-1">Saldo Total</p>
@@ -121,90 +154,48 @@
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
                 <div class="lg:col-span-3">
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                         <i data-lucide="credit-card" class="w-5 h-5 text-indigo-500"></i> Meus Cartões
                     </h3>
-                    <div class="flex overflow-x-auto gap-4 pb-4 hide-scroll">
-                        <div class="min-w-[280px] h-44 bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between relative overflow-hidden group hover:scale-105 transition duration-300">
-                            <div class="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white opacity-10"></div>
-                            <div class="flex justify-between items-start">
-                                <span class="font-bold tracking-wider">Nubank</span>
-                                <i data-lucide="nfc" class="w-6 h-6 opacity-70"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs text-purple-200 mb-1">Fatura Atual</p>
-                                <p class="text-2xl font-bold">R$ 850,00</p>
-                            </div>
-                            <div class="flex justify-between items-end">
-                                <p class="text-sm tracking-widest">**** 4291</p>
-                                <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Logo Mastercard" class="h-6 opacity-80">
-                            </div>
+                    <div id="cards-container" class="flex overflow-x-auto gap-4 pb-4 hide-scroll">
                         </div>
-
-                        <div class="min-w-[280px] h-44 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between relative overflow-hidden group hover:scale-105 transition duration-300">
-                            <div class="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white opacity-10"></div>
-                            <div class="flex justify-between items-start">
-                                <span class="font-bold tracking-wider">Itaú</span>
-                                <i data-lucide="nfc" class="w-6 h-6 opacity-70"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs text-orange-100 mb-1">Fatura Atual</p>
-                                <p class="text-2xl font-bold">R$ 1.200,50</p>
-                            </div>
-                            <div class="flex justify-between items-end">
-                                <p class="text-sm tracking-widest">**** 8821</p>
-                                <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Logo Visa" class="h-4 bg-white px-1 rounded opacity-80">
-                            </div>
-                        </div>
-
-                         <div class="min-w-[100px] h-44 bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition" aria-label="Adicionar novo cartão" role="button">
-                            <i data-lucide="plus" class="w-8 h-8 mb-2"></i>
-                            <span class="text-xs font-medium">Novo</span>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="lg:col-span-2 bg-white dark:bg-darkcard p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Gastos Diários</h3>
-                    <div class="h-64">
-                        <canvas id="lineChart"></canvas>
-                    </div>
+                    <div class="h-64"><canvas id="lineChart"></canvas></div>
                 </div>
-
                 <div class="lg:col-span-1 bg-white dark:bg-darkcard p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col">
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Por Categoria</h3>
                     <div class="flex-1 relative flex items-center justify-center min-h-[200px]">
                         <canvas id="expenseChart"></canvas>
-                        <div id="no-data-msg" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400 hidden">
-                            <span class="text-sm">Sem dados</span>
-                        </div>
+                        <div id="no-data-msg" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400 hidden"><span class="text-sm">Sem dados</span></div>
                     </div>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div class="lg:col-span-1 bg-white dark:bg-darkcard p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Adicionar</h3>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Adicionar Movimentação</h3>
                     <form id="transaction-form" class="space-y-4">
                         <div>
-                            <label for="desc" class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Descrição</label>
+                            <label for="desc" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Descrição</label>
                             <input type="text" id="desc" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label for="amount" class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Valor</label>
+                                <label for="amount" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Valor</label>
                                 <input type="text" id="amount" onkeyup="formatarMoedaInput(this)" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
                             </div>
                             <div>
-                                <label for="date" class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Data</label>
+                                <label for="date" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Data</label>
                                 <input type="date" id="date" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
                             </div>
                         </div>
                         <div>
-                            <label for="category" class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Categoria</label>
-                            <select id="category" aria-label="Selecionar Categoria" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white">
+                            <label for="category" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Categoria</label>
+                            <select id="category" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white">
                                 <option value="salary">💸 Receita</option>
                                 <option value="freelance">💻 Freelance</option>
                                 <option value="food">🍔 Alimentação</option>
@@ -221,7 +212,6 @@
                         <button type="submit" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700">Adicionar</button>
                     </form>
                 </div>
-
                 <div class="lg:col-span-2 bg-white dark:bg-darkcard rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                     <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white">Histórico</h3>
@@ -232,9 +222,7 @@
                             </button>
                         </div>
                     </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left"><tbody id="transaction-list" class="divide-y divide-gray-100 dark:divide-gray-700"></tbody></table>
-                    </div>
+                    <div class="overflow-x-auto"><table class="w-full text-left"><tbody id="transaction-list" class="divide-y divide-gray-100 dark:divide-gray-700"></tbody></table></div>
                 </div>
             </div>
         </main>
