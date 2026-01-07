@@ -14,11 +14,10 @@ const categoryConfig = {
     other: { label: 'Outros', icon: 'package', color: 'text-gray-600', bg: 'bg-gray-100', type: 'expense' }
 };
 
-// CORES DOS BANCOS (COM BB ADICIONADO)
 const bankStyles = {
     nubank: { bg: 'bg-gradient-to-br from-purple-600 to-purple-800', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg' },
     itau: { bg: 'bg-gradient-to-br from-orange-500 to-orange-600', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg' },
-    bb: { bg: 'bg-gradient-to-br from-yellow-400 to-yellow-600', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg' }, // BB AQUI
+    bb: { bg: 'bg-gradient-to-br from-yellow-400 to-yellow-600', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg' },
     santander: { bg: 'bg-gradient-to-br from-red-600 to-red-800', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg' },
     bradesco: { bg: 'bg-gradient-to-br from-red-600 to-red-700', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg' },
     inter: { bg: 'bg-gradient-to-br from-orange-400 to-orange-500', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg' },
@@ -56,19 +55,27 @@ if(window.lucide) lucide.createIcons();
 const dateInput = document.getElementById('date');
 if(dateInput) dateInput.valueAsDate = new Date();
 
-// --- DARK MODE ---
+// --- DARK MODE FIX (Feedback da Yasmin) ---
+function updateThemeIcon(isDark) {
+    // Se for Dark, mostra o Sol. Se for Light, mostra a Lua.
+    themeIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+    if(window.lucide) lucide.createIcons();
+}
+
 const userTheme = localStorage.getItem('theme');
 const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
 if (userTheme === 'dark' || (!userTheme && systemTheme)) {
     document.documentElement.classList.add('dark');
-    if(themeIcon) themeIcon.setAttribute('data-lucide', 'sun');
+    updateThemeIcon(true);
+} else {
+    updateThemeIcon(false);
 }
+
 if(themeToggle) {
     themeToggle.addEventListener('click', () => {
         const isDark = document.documentElement.classList.toggle('dark');
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
-        themeIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
-        lucide.createIcons();
+        updateThemeIcon(isDark);
         if(donutChartInstance) renderCharts(filteredTransactions);
     });
 }
@@ -263,13 +270,14 @@ function renderCards(cards) {
     cardsContainer.innerHTML = '';
     cards.forEach(card => {
         const style = bankStyles[card.bank] || bankStyles['blue'];
+        // CORREÇÃO VISUAL: pointer no botão de editar
         const cardHtml = `
             <div class="min-w-[280px] h-44 ${style.bg} rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between relative overflow-hidden group hover:scale-105 transition duration-300">
                 <div class="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white opacity-10"></div>
                 <div class="flex justify-between items-start z-10">
                     <span class="font-bold tracking-wider">${card.name}</span>
                     <div class="flex gap-2">
-                        <button onclick="prepararEdicaoCartao('${card.id}')" aria-label="Editar" class="opacity-50 hover:opacity-100 transition"><i data-lucide="pencil" class="w-4 h-4 text-white"></i></button>
+                        <button onclick="prepararEdicaoCartao('${card.id}')" aria-label="Editar" class="opacity-50 hover:opacity-100 transition cursor-pointer"><i data-lucide="pencil" class="w-4 h-4 text-white"></i></button>
                         <i data-lucide="nfc" class="w-6 h-6 opacity-70"></i>
                     </div>
                 </div>
@@ -280,7 +288,7 @@ function renderCards(cards) {
                 <div class="flex justify-between items-end z-10">
                     <p class="text-sm tracking-widest">**** ${card.last4}</p>
                     <div class="flex items-center gap-2">
-                        <button onclick="deletarCartao('${card.id}')" aria-label="Excluir" class="opacity-50 hover:opacity-100 transition"><i data-lucide="trash" class="w-4 h-4 text-white"></i></button>
+                        <button onclick="deletarCartao('${card.id}')" aria-label="Excluir" class="opacity-50 hover:opacity-100 transition cursor-pointer"><i data-lucide="trash" class="w-4 h-4 text-white"></i></button>
                         <img src="${style.logo}" class="h-6 opacity-80 bg-white/20 rounded px-1" alt="Logo Banco">
                     </div>
                 </div>
@@ -289,6 +297,7 @@ function renderCards(cards) {
         cardsContainer.innerHTML += cardHtml;
     });
 
+    // CORREÇÃO: Button em vez de Div para acessibilidade e cursor
     const addBtnHtml = `
         <button onclick="abrirModalCartao()" class="min-w-[100px] h-44 bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition" aria-label="Adicionar Cartão">
             <i data-lucide="plus" class="w-8 h-8 mb-2"></i>
@@ -405,6 +414,7 @@ function renderList(transactions) {
         let fonteIcone = '';
         if(t.source && t.source !== 'wallet') fonteIcone = '<i data-lucide="credit-card" class="w-3 h-3 text-indigo-500 ml-1"></i>';
 
+        // CORREÇÃO CURSOR: Adicionei classes de cursor e hover aos botões da lista
         const row = document.createElement('tr');
         row.className = "hover:bg-gray-50 dark:hover:bg-gray-800 transition border-b border-gray-100 dark:border-gray-700";
         row.innerHTML = `
@@ -413,8 +423,8 @@ function renderList(transactions) {
             <td class="p-4 text-sm text-gray-500">${formatarData(t.date)}</td>
             <td class="p-4 text-right font-bold text-sm ${isExpense ? 'text-red-500' : 'text-green-500'}">${Math.abs(t.amount).toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</td>
             <td class="p-4 text-center flex justify-center gap-2">
-                <button onclick="prepararEdicao('${t.id}')" aria-label="Editar" class="text-gray-400 hover:text-indigo-500 transition"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-                <button onclick="deletarItem('${t.id}')" aria-label="Excluir" class="text-gray-400 hover:text-red-500 transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                <button onclick="prepararEdicao('${t.id}')" aria-label="Editar" class="text-gray-400 hover:text-indigo-500 transition cursor-pointer"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                <button onclick="deletarItem('${t.id}')" aria-label="Excluir" class="text-gray-400 hover:text-red-500 transition cursor-pointer"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </td>`;
         listElement.appendChild(row);
     });
