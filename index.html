@@ -14,20 +14,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
     <style>
         body { font-family: 'Inter', sans-serif; }
-        
         .card-container-padding { padding: 12px; margin: -12px; }
         .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
         .fade-in { animation: fadeIn 0.5s ease-in-out; }
         .toast-enter { animation: slideIn 0.3s ease-out forwards; }
-        
-        /* SOLUÇÃO DEFINITIVA DO AVISO AMARELO */
         .hide-scroll::-webkit-scrollbar { display: none; }
         .hide-scroll { -ms-overflow-style: none; }
-        
         button { cursor: pointer; }
-        
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #4f46e5; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
@@ -108,36 +105,50 @@
         <div class="bg-white dark:bg-darkcard p-6 rounded-2xl w-full max-w-md shadow-2xl m-4 fade-in">
             <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-600 dark:text-indigo-400"><i data-lucide="plus-circle"></i> Novo Cartão</h3>
             <form id="card-form" class="space-y-4">
-                <div>
-                    <label for="card-bank" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Banco / Cor</label>
-                    <select id="card-bank" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white cursor-pointer">
-                        <option value="nubank">🟣 Nubank (Roxo)</option>
-                        <option value="itau">🟠 Itaú (Laranja)</option>
-                        <option value="bb">🟡 Banco do Brasil (Amarelo)</option>
-                        <option value="santander">🔴 Santander (Vermelho)</option>
-                        <option value="bradesco">🔴 Bradesco (Vermelho)</option>
-                        <option value="inter">🟠 Inter (Laranja)</option>
-                        <option value="c6">⚫ C6 Bank (Carbono)</option>
-                        <option value="blue">🔵 Genérico (Azul)</option>
-                        <option value="green">🟢 Genérico (Verde)</option>
-                    </select>
-                </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label for="card-name" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Nome</label>
-                        <input type="text" id="card-name" placeholder="Ex: Ourocard" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
+                        <label for="card-bank" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Banco / Cor</label>
+                        <select id="card-bank" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white cursor-pointer">
+                            <option value="nubank">🟣 Nubank (Roxo)</option>
+                            <option value="itau">🟠 Itaú (Laranja)</option>
+                            <option value="bb">🟡 Banco do Brasil</option>
+                            <option value="santander">🔴 Santander</option>
+                            <option value="bradesco">🔴 Bradesco</option>
+                            <option value="inter">🟠 Inter (Laranja)</option>
+                            <option value="c6">⚫ C6 Bank (Preto)</option>
+                            <option value="blue">🔵 Azul (Genérico)</option>
+                            <option value="green">🟢 Verde (Genérico)</option>
+                        </select>
                     </div>
-                    
+                    <div>
+                        <label for="card-flag" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Bandeira</label>
+                        <select id="card-flag" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white cursor-pointer">
+                            <option value="master">Mastercard</option>
+                            <option value="visa">Visa</option>
+                            <option value="elo">Elo</option>
+                            <option value="hiper">Hipercard</option>
+                            <option value="amex">Amex</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="card-name" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Nome do Cartão</label>
+                    <input type="text" id="card-name" placeholder="Ex: Ourocard Platinum" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label for="card-last4" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Final 4</label>
                         <input type="text" id="card-last4" placeholder="1234" maxlength="4" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" 
                         oninput="this.value = this.value.replace(/[^0-9]/g, '')" required>
                     </div>
+                    <div>
+                        <label for="card-bill" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Fatura Inicial</label>
+                        <input type="text" id="card-bill" placeholder="R$ 0,00" onkeyup="formatarMoedaInput(this)" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
+                    </div>
                 </div>
-                <div>
-                    <label for="card-bill" class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Fatura Inicial</label>
-                    <input type="text" id="card-bill" placeholder="R$ 0,00" onkeyup="formatarMoedaInput(this)" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-xl dark:text-white" required>
-                </div>
+
                 <div class="flex gap-3 mt-6">
                     <button type="button" onclick="fecharModalCartao()" class="flex-1 py-3 bg-gray-200 dark:bg-gray-600 rounded-xl hover:bg-gray-300 transition">Cancelar</button>
                     <button type="submit" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition">Criar Cartão</button>

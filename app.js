@@ -1,5 +1,8 @@
 import { auth, db, provider, signInWithPopup, signOut, onAuthStateChanged, collection, addDoc, query, where, onSnapshot, deleteDoc, doc, updateDoc } from "./firebase.js";
 
+// Registra o Plugin de Labels do Chart.js
+Chart.register(ChartDataLabels);
+
 const categoryConfig = {
     salary: { label: 'Receita', icon: 'banknote', color: 'text-green-600', bg: 'bg-green-100', type: 'income' },
     freelance: { label: 'Freelance', icon: 'laptop', color: 'text-emerald-600', bg: 'bg-emerald-100', type: 'income' },
@@ -14,16 +17,26 @@ const categoryConfig = {
     other: { label: 'Outros', icon: 'package', color: 'text-gray-600', bg: 'bg-gray-100', type: 'expense' }
 };
 
+// CORES DOS BANCOS
 const bankStyles = {
-    nubank: { bg: 'bg-gradient-to-br from-purple-600 to-purple-800', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg' },
-    itau: { bg: 'bg-gradient-to-br from-orange-500 to-orange-600', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg' },
-    bb: { bg: 'bg-gradient-to-br from-yellow-400 to-yellow-600', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg' },
-    santander: { bg: 'bg-gradient-to-br from-red-600 to-red-800', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg' },
-    bradesco: { bg: 'bg-gradient-to-br from-red-600 to-red-700', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg' },
-    inter: { bg: 'bg-gradient-to-br from-orange-400 to-orange-500', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg' },
-    c6: { bg: 'bg-gradient-to-br from-gray-800 to-black', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg' },
-    blue: { bg: 'bg-gradient-to-br from-blue-500 to-blue-700', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg' },
-    green: { bg: 'bg-gradient-to-br from-emerald-500 to-emerald-700', logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg' }
+    nubank: { bg: 'bg-gradient-to-br from-purple-600 to-purple-800' },
+    itau: { bg: 'bg-gradient-to-br from-orange-500 to-orange-600' },
+    bb: { bg: 'bg-gradient-to-br from-yellow-400 to-yellow-600' },
+    santander: { bg: 'bg-gradient-to-br from-red-600 to-red-800' },
+    bradesco: { bg: 'bg-gradient-to-br from-red-600 to-red-700' },
+    inter: { bg: 'bg-gradient-to-br from-orange-400 to-orange-500' },
+    c6: { bg: 'bg-gradient-to-br from-gray-800 to-black' },
+    blue: { bg: 'bg-gradient-to-br from-blue-500 to-blue-700' },
+    green: { bg: 'bg-gradient-to-br from-emerald-500 to-emerald-700' }
+};
+
+// LOGOS DAS BANDEIRAS
+const flagLogos = {
+    visa: 'https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg',
+    master: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg',
+    elo: 'https://upload.wikimedia.org/wikipedia/commons/1/16/Elo_logo.png', // Elo é .png, cuidado com fundo
+    hiper: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Hipercard_logo.svg',
+    amex: 'https://upload.wikimedia.org/wikipedia/commons/3/30/American_Express_logo.svg'
 };
 
 const loginScreen = document.getElementById('login-screen');
@@ -55,9 +68,7 @@ if(window.lucide) lucide.createIcons();
 const dateInput = document.getElementById('date');
 if(dateInput) dateInput.valueAsDate = new Date();
 
-// --- DARK MODE FIX (Feedback da Yasmin) ---
 function updateThemeIcon(isDark) {
-    // Se for Dark, mostra o Sol. Se for Light, mostra a Lua.
     themeIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
     if(window.lucide) lucide.createIcons();
 }
@@ -202,15 +213,17 @@ window.prepararEdicaoCartao = (id) => {
 }
 window.fecharModalEdicaoCartao = () => document.getElementById('edit-card-modal').classList.add('hidden');
 
+// Salvar NOVO cartão
 cardForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if(!currentUser) return;
     const bank = document.getElementById('card-bank').value;
+    const flag = document.getElementById('card-flag').value; // NOVA CAPTURA
     const name = document.getElementById('card-name').value;
     const last4 = document.getElementById('card-last4').value;
     const bill = limparValorMoeda(document.getElementById('card-bill').value);
     try {
-        await addDoc(collection(db, "cards"), { uid: currentUser.uid, bank, name, last4, bill, createdAt: new Date() });
+        await addDoc(collection(db, "cards"), { uid: currentUser.uid, bank, flag, name, last4, bill, createdAt: new Date() });
         showToast("Cartão Criado!");
         fecharModalCartao();
         cardForm.reset();
@@ -270,7 +283,9 @@ function renderCards(cards) {
     cardsContainer.innerHTML = '';
     cards.forEach(card => {
         const style = bankStyles[card.bank] || bankStyles['blue'];
-        // CORREÇÃO VISUAL: pointer no botão de editar
+        // Lógica da Bandeira: Se não tiver (cartão antigo), usa Visa como padrão
+        const flagUrl = flagLogos[card.flag] || flagLogos['visa']; 
+        
         const cardHtml = `
             <div class="min-w-[280px] h-44 ${style.bg} rounded-2xl p-5 text-white shadow-lg flex flex-col justify-between relative overflow-hidden group hover:scale-105 transition duration-300">
                 <div class="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white opacity-10"></div>
@@ -289,7 +304,7 @@ function renderCards(cards) {
                     <p class="text-sm tracking-widest">**** ${card.last4}</p>
                     <div class="flex items-center gap-2">
                         <button onclick="deletarCartao('${card.id}')" aria-label="Excluir" class="opacity-50 hover:opacity-100 transition cursor-pointer"><i data-lucide="trash" class="w-4 h-4 text-white"></i></button>
-                        <img src="${style.logo}" class="h-6 opacity-80 bg-white/20 rounded px-1" alt="Logo Banco">
+                        <img src="${flagUrl}" class="h-8 bg-white/20 rounded px-1" alt="Bandeira Cartão">
                     </div>
                 </div>
             </div>
@@ -297,7 +312,6 @@ function renderCards(cards) {
         cardsContainer.innerHTML += cardHtml;
     });
 
-    // CORREÇÃO: Button em vez de Div para acessibilidade e cursor
     const addBtnHtml = `
         <button onclick="abrirModalCartao()" class="min-w-[100px] h-44 bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition" aria-label="Adicionar Cartão">
             <i data-lucide="plus" class="w-8 h-8 mb-2"></i>
@@ -381,7 +395,28 @@ function renderCharts(transactions) {
         donutChartInstance = new Chart(ctxDonut, {
             type: 'doughnut',
             data: { labels: ['Entradas', 'Saídas'], datasets: [{ data: [income, expense], backgroundColor: ['#10b981', '#ef4444'], borderWidth: 0, hoverOffset: 4 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: textColor } } }, cutout: '70%' }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { 
+                    legend: { position: 'bottom', labels: { color: textColor } },
+                    // NOVA CONFIGURAÇÃO DO PLUGIN DE DATALABELS
+                    datalabels: {
+                        color: '#fff',
+                        font: { weight: 'bold' },
+                        formatter: (value, ctx) => {
+                            if(value === 0) return ''; // Se for 0, não mostra nada
+                            // Calcula a porcentagem
+                            let sum = 0;
+                            let dataArr = ctx.chart.data.datasets[0].data;
+                            dataArr.map(data => { sum += data; });
+                            let percentage = (value*100 / sum).toFixed(0)+"%";
+                            return percentage;
+                        }
+                    }
+                }, 
+                cutout: '60%' 
+            }
         });
     }
 
@@ -401,7 +436,15 @@ function renderCharts(transactions) {
             labels: Object.keys(expensesByDay),
             datasets: [{ label: 'Gastos Diários', data: Object.values(expensesByDay), borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.1)', tension: 0.4, fill: true, pointRadius: 2 }]
         },
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { grid: { color: gridColor }, ticks: { color: textColor, callback: (v) => 'R$' + v } }, x: { grid: { display: false }, ticks: { color: textColor } } }, plugins: { legend: { display: false } } }
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            scales: { y: { grid: { color: gridColor }, ticks: { color: textColor, callback: (v) => 'R$' + v } }, x: { grid: { display: false }, ticks: { color: textColor } } }, 
+            plugins: { 
+                legend: { display: false },
+                datalabels: { display: false } // Desativa labels no gráfico de linha pra não poluir
+            } 
+        }
     });
 }
 
@@ -414,7 +457,6 @@ function renderList(transactions) {
         let fonteIcone = '';
         if(t.source && t.source !== 'wallet') fonteIcone = '<i data-lucide="credit-card" class="w-3 h-3 text-indigo-500 ml-1"></i>';
 
-        // CORREÇÃO CURSOR: Adicionei classes de cursor e hover aos botões da lista
         const row = document.createElement('tr');
         row.className = "hover:bg-gray-50 dark:hover:bg-gray-800 transition border-b border-gray-100 dark:border-gray-700";
         row.innerHTML = `
